@@ -28,8 +28,30 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 app.use(helmet());
 app.use(compression());
 app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+const rawOrigins = process.env.CORS_ORIGIN || 'http://localhost:5173';
+const allowedOrigins = rawOrigins.split(',').map(s => s.trim().replace(/\/$/, ''));
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const normalized = origin.replace(/\/$/, '');
+    let isVercel = false;
+    try {
+      isVercel = /\.vercel\.app$/.test(new URL(origin).hostname);
+    } catch {}
+
+    const isAllowed =
+      allowedOrigins.includes('*') ||
+      allowedOrigins.includes(normalized) ||
+      (NODE_ENV !== 'production' && normalized.includes('localhost')) ||
+      isVercel;
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
