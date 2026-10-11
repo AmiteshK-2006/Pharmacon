@@ -246,6 +246,7 @@ create or replace function public.get_low_stock_medicines()
 returns table (
   medicine_id   uuid,
   name          text,
+  generic_name  text,
   strength      text,
   dosage_form   text,
   reorder_threshold int,
@@ -254,6 +255,7 @@ returns table (
   select
     m.id as medicine_id,
     m.name,
+    m.generic_name,
     m.strength,
     m.dosage_form,
     m.reorder_threshold,
@@ -261,7 +263,7 @@ returns table (
   from public.medicines m
   left join public.inventory_batches b on b.medicine_id = m.id
   where m.status = 'active'
-  group by m.id, m.name, m.strength, m.dosage_form, m.reorder_threshold
+  group by m.id, m.name, m.generic_name, m.strength, m.dosage_form, m.reorder_threshold
   having coalesce(sum(b.quantity), 0) <= m.reorder_threshold;
 $$;
 

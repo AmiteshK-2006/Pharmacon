@@ -189,7 +189,7 @@ export default function InventoryPage() {
           { key: 'medicines', label: 'All Medicines', icon: Package },
           { key: 'low-stock', label: 'Low Stock', icon: AlertTriangle },
           { key: 'expiring', label: 'Expiring', icon: Clock },
-          ...(selectedMedicine ? [{ key: 'transactions', label: `Transactions — ${selectedMedicine.name}`, icon: RefreshCw }] : []),
+          ...(selectedMedicine ? [{ key: 'transactions', label: `Transactions — ${selectedMedicine.generic_name || selectedMedicine.name}`, icon: RefreshCw }] : []),
         ].map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => setActiveTab(key)}
             className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
@@ -267,7 +267,7 @@ export default function InventoryPage() {
                             <RefreshCw className="w-3.5 h-3.5" />
                           </button>
                           {med.status === 'active' && (
-                            <button onClick={() => { if (confirm(`Deactivate ${med.name}?`)) deactivateMutation.mutate(med.id); }}
+                            <button onClick={() => { if (confirm(`Deactivate ${med.generic_name || med.name}?`)) deactivateMutation.mutate(med.id); }}
                               className="btn-ghost btn-sm text-danger hover:bg-danger-light" title="Deactivate">
                               <Minus className="w-3.5 h-3.5" />
                             </button>
@@ -296,12 +296,15 @@ export default function InventoryPage() {
               )}
               {lowStock.map(item => (
                 <tr key={item.medicine_id}>
-                  <td className="font-medium">{item.name}</td>
+                  <td>
+                    <p className="font-medium text-surface-900">{item.generic_name || item.name}</p>
+                    {item.generic_name && <p className="text-xs text-surface-400">{item.name}</p>}
+                  </td>
                   <td>{item.dosage_form} · {item.strength}</td>
                   <td className="font-semibold text-danger">{item.total_stock}</td>
                   <td>{item.reorder_threshold}</td>
                   <td>
-                    <button onClick={() => { setSelectedMedicine({ id: item.medicine_id, name: item.name }); setShowRestockModal(true); }}
+                    <button onClick={() => { setSelectedMedicine({ id: item.medicine_id, name: item.name, generic_name: item.generic_name }); setShowRestockModal(true); }}
                       className="btn-primary btn-sm">
                       <Plus className="w-3.5 h-3.5" /> Restock
                     </button>
@@ -326,9 +329,13 @@ export default function InventoryPage() {
               )}
               {expiring.map(batch => {
                 const daysLeft = Math.ceil((new Date(batch.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
+                const med = batch.medicines;
                 return (
                   <tr key={batch.id}>
-                    <td className="font-medium">{batch.medicines?.name} · {batch.medicines?.strength}</td>
+                    <td>
+                      <p className="font-medium text-surface-900">{med?.generic_name || med?.name}</p>
+                      {med?.generic_name && <p className="text-xs text-surface-400">{med?.name}</p>}
+                    </td>
                     <td className="font-mono text-xs">{batch.batch_number || '—'}</td>
                     <td>{batch.quantity}</td>
                     <td>{new Date(batch.expiry_date).toLocaleDateString()}</td>
@@ -348,7 +355,7 @@ export default function InventoryPage() {
       {/* ─── Transactions Tab ───────────────────────────────── */}
       {activeTab === 'transactions' && selectedMedicine && (
         <>
-          <p className="text-sm text-surface-500 mb-4">Transaction history for <strong>{selectedMedicine.name}</strong></p>
+          <p className="text-sm text-surface-500 mb-4">Transaction history for <strong>{selectedMedicine.generic_name || selectedMedicine.name}</strong></p>
           <div className="table-wrapper">
             <table className="table">
               <thead>
@@ -435,7 +442,7 @@ export default function InventoryPage() {
       </Modal>
 
       {/* ─── Restock Modal ──────────────────────────────────── */}
-      <Modal open={showRestockModal} onClose={() => setShowRestockModal(false)} title={`Restock — ${selectedMedicine?.name}`}>
+      <Modal open={showRestockModal} onClose={() => setShowRestockModal(false)} title={`Restock — ${selectedMedicine?.generic_name || selectedMedicine?.name}`}>
         <form onSubmit={e => {
           e.preventDefault();
           restockMutation.mutate({ id: selectedMedicine.id, body: { ...restockForm, quantity: Number(restockForm.quantity), cost_per_unit: restockForm.cost_per_unit ? Number(restockForm.cost_per_unit) : undefined } });
@@ -476,7 +483,7 @@ export default function InventoryPage() {
       </Modal>
 
       {/* ─── Adjust Stock Modal ─────────────────────────────── */}
-      <Modal open={showAdjustModal} onClose={() => setShowAdjustModal(false)} title={`Adjust Stock — ${selectedMedicine?.name}`}>
+      <Modal open={showAdjustModal} onClose={() => setShowAdjustModal(false)} title={`Adjust Stock — ${selectedMedicine?.generic_name || selectedMedicine?.name}`}>
         <form onSubmit={e => {
           e.preventDefault();
           adjustMutation.mutate({ id: selectedMedicine.id, body: { ...adjustForm, quantity_change: Number(adjustForm.quantity_change) } });

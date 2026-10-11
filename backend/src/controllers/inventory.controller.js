@@ -186,6 +186,28 @@ export async function getLowStockAlerts(req, res, next) {
     // Medicines where total batch stock <= reorder_threshold
     const { data, error } = await supabaseAdmin.rpc('get_low_stock_medicines');
     if (error) throw new AppError(error.message, 500);
+
+    // Ensure generic_name is populated if RPC does not provide it
+    if (data && data.length > 0) {
+      const missingGeneric = data.some(d => d.generic_name === undefined);
+      if (missingGeneric) {
+        const ids = data.map(d => d.medicine_id);
+        const { data: medicines } = await supabaseAdmin
+          .from('medicines')
+          .select('id, generic_name')
+          .in('id', ids);
+
+        if (medicines) {
+          const medMap = new Map(medicines.map(m => [m.id, m.generic_name]));
+          data.forEach(item => {
+            if (item.generic_name === undefined) {
+              item.generic_name = medMap.get(item.medicine_id) ?? null;
+            }
+          });
+        }
+      }
+    }
+
     res.json({ data });
   } catch (err) { next(err); }
 }
@@ -198,7 +220,7 @@ export async function getExpiringBatches(req, res, next) {
 
     const { data, error } = await supabaseAdmin
       .from('inventory_batches')
-      .select('*, medicines(name, strength, dosage_form)')
+      .select('*, medicines(name, generic_name, strength, dosage_form)')
       .lt('expiry_date', cutoffDate.toISOString())
       .gt('quantity', 0)
       .order('expiry_date');
