@@ -6,7 +6,7 @@ import { apiRequest } from '../../lib/api';
 import { PageSpinner } from '../../components/Spinner';
 import { EmptyState, ErrorState } from '../../components/States';
 import { StatusBadge } from '../../components/StatusBadge';
-import { ArrowLeft, FileText, Download } from 'lucide-react';
+import { ArrowLeft, FileText, Download, ExternalLink } from 'lucide-react';
 
 export default function PrescriptionDetailPage() {
   const { id } = useParams();
@@ -21,7 +21,19 @@ export default function PrescriptionDetailPage() {
 
   const pres = data?.data;
 
+  const { data: fileData, isLoading: fileLoading } = useQuery({
+    queryKey: ['prescription-file', id],
+    queryFn: () => apiRequest(`/api/prescriptions/${id}/file`, {}, session),
+    enabled: !!pres?.file_assets,
+  });
+
+  const fileUrl = fileData?.data?.url;
+
   async function handleDownload() {
+    if (fileUrl) {
+      window.open(fileUrl, '_blank');
+      return;
+    }
     setDownloading(true);
     try {
       const res = await apiRequest(`/api/prescriptions/${id}/file`, {}, session);
@@ -54,7 +66,20 @@ export default function PrescriptionDetailPage() {
             Prescription Details
             <StatusBadge status={pres.status} />
           </h1>
-          <p className="font-mono text-xs text-surface-500 mt-1">{pres.id}</p>
+          <div className="flex items-center gap-2 mt-1 text-sm text-surface-600">
+            {pres.patient ? (
+              <span className="font-semibold text-surface-900">
+                Patient: {pres.patient.first_name} {pres.patient.last_name}
+                {pres.patient.phone && <span className="text-surface-400 font-normal ml-1">({pres.patient.phone})</span>}
+              </span>
+            ) : (
+              <span className="text-surface-400 italic">
+                {pres.patient_id ? `Patient #${pres.patient_id.slice(0, 8)}` : 'Unassigned Patient'}
+              </span>
+            )}
+            <span className="text-surface-300">•</span>
+            <span className="font-mono text-xs text-surface-400">{pres.id}</span>
+          </div>
         </div>
       </div>
 
@@ -65,14 +90,25 @@ export default function PrescriptionDetailPage() {
               <FileText className="w-4 h-4 text-brand-600" /> Original File
             </h3>
             {pres.file_assets ? (
-              <div className="flex items-center justify-between p-3 bg-surface-50 rounded-lg border border-surface-200">
-                <div className="truncate">
-                  <p className="font-medium text-sm">{pres.file_assets.original_name}</p>
-                  <p className="text-xs text-surface-500 uppercase">{pres.file_assets.mime_type.split('/').pop()}</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-surface-50 rounded-lg border border-surface-200">
+                  <div className="truncate mr-2">
+                    <p className="font-medium text-sm text-surface-900">{pres.file_assets.original_name}</p>
+                    <p className="text-xs text-surface-500 uppercase">{pres.file_assets.mime_type.split('/').pop()}</p>
+                  </div>
+                  <button onClick={handleDownload} disabled={downloading} className="btn-secondary btn-sm flex-shrink-0">
+                    {downloading ? 'Loading...' : <><ExternalLink className="w-4 h-4" /> Open in New Tab</>}
+                  </button>
                 </div>
-                <button onClick={handleDownload} disabled={downloading} className="btn-secondary btn-sm flex-shrink-0">
-                  {downloading ? 'Loading...' : <><Download className="w-4 h-4" /> View</>}
-                </button>
+                {fileUrl && pres.file_assets.mime_type?.startsWith('image/') && (
+                  <div className="p-2 bg-surface-100 rounded-lg flex items-center justify-center overflow-hidden">
+                    <img
+                      src={fileUrl}
+                      alt={pres.file_assets.original_name}
+                      className="max-h-96 w-auto object-contain rounded border border-surface-200"
+                    />
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-sm text-surface-500">No file attached</p>

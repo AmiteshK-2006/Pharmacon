@@ -89,14 +89,40 @@ export async function uploadPrescription(req, res, next) {
 export async function listPrescriptions(req, res, next) {
   try {
     const { role, id: userId } = req.user;
-    let query = supabaseAdmin.from('prescriptions').select('*, file_assets(id, original_name, mime_type), prescription_items(*), prescription_extraction_fields(*), refill_requests(*)');
+    let query = supabaseAdmin.from('prescriptions').select(`
+      *,
+      file_assets(id, original_name, mime_type, size),
+      prescription_items(*),
+      prescription_extraction_fields(*),
+      refill_requests(*),
+      patient:profiles!prescriptions_patient_id_fkey(id, first_name, last_name, phone)
+    `);
 
     if (role === 'patient') query = query.eq('patient_id', userId);
     else if (role === 'doctor') query = query.eq('doctor_id', userId);
     // admin, pharmacist, clinic_staff see all
 
-    const { data, error } = await query.order('created_at', { ascending: false });
-    if (error) throw new AppError(error.message, 500);
+    let { data, error } = await query.order('created_at', { ascending: false });
+
+    // Fallback if PostgREST relation syntax encounters an issue
+    if (error) {
+      let fallbackQuery = supabaseAdmin.from('prescriptions').select('*, file_assets(id, original_name, mime_type, size), prescription_items(*), prescription_extraction_fields(*), refill_requests(*)');
+      if (role === 'patient') fallbackQuery = fallbackQuery.eq('patient_id', userId);
+      else if (role === 'doctor') fallbackQuery = fallbackQuery.eq('doctor_id', userId);
+      const resFallback = await fallbackQuery.order('created_at', { ascending: false });
+      if (resFallback.error) throw new AppError(resFallback.error.message, 500);
+      data = resFallback.data || [];
+
+      const patientIds = [...new Set(data.map(p => p.patient_id).filter(Boolean))];
+      if (patientIds.length > 0) {
+        const { data: profiles } = await supabaseAdmin.from('profiles').select('id, first_name, last_name, phone').in('id', patientIds);
+        const pMap = new Map((profiles || []).map(p => [p.id, p]));
+        data.forEach(p => {
+          p.patient = pMap.get(p.patient_id) || null;
+        });
+      }
+    }
+
     res.json({ data });
   } catch (err) { next(err); }
 }
@@ -104,11 +130,29 @@ export async function listPrescriptions(req, res, next) {
 export async function getPrescription(req, res, next) {
   try {
     const { id } = req.params;
-    const { data, error } = await supabaseAdmin
+    let { data, error } = await supabaseAdmin
       .from('prescriptions')
-      .select('*, file_assets(*), prescription_extraction_fields(*), prescription_status_history(*)')
+      .select('*, file_assets(*), prescription_extraction_fields(*), prescription_status_history(*), patient:profiles!prescriptions_patient_id_fkey(id, first_name, last_name, phone)')
       .eq('id', id).single();
-    if (error || !data) throw new AppError('Prescription not found', 404);
+
+    if (error) {
+      const fallback = await supabaseAdmin
+        .from('prescriptions')
+        .select('*, file_assets(*), prescription_extraction_fields(*), prescription_status_history(*)')
+        .eq('id', id).single();
+      if (fallback.error || !fallback.data) throw new AppError('Prescription not found', 404);
+      data = fallback.data;
+
+      if (data.patient_id) {
+        const { data: patientProfile } = await supabaseAdmin
+          .from('profiles')
+          .select('id, first_name, last_name, phone')
+          .eq('id', data.patient_id).single();
+        data.patient = patientProfile || null;
+      }
+    }
+
+    if (!data) throw new AppError('Prescription not found', 404);
 
     const { role, id: userId } = req.user;
     if (role === 'patient' && data.patient_id !== userId) throw new AppError('Access denied', 403);
@@ -132,9 +176,13 @@ export async function getPrescriptionFile(req, res, next) {
     if (role === 'doctor' && prescription.doctor_id !== userId) throw new AppError('Access denied', 403);
 
     const asset = prescription.file_assets;
+    if (!asset || !asset.bucket || !asset.storage_path) {
+      throw new AppError('No file attached to this prescription', 404);
+    }
+
     const { data: signed, error: signError } = await supabaseAdmin.storage
       .from(asset.bucket).createSignedUrl(asset.storage_path, 300);
-    if (signError) throw new AppError('Could not generate file URL', 500);
+    if (signError) throw new AppError(`Could not generate file URL: ${signError.message}`, 500);
 
     res.json({ data: { url: signed.signedUrl, expires_in: 300 } });
   } catch (err) { next(err); }

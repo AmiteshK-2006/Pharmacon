@@ -59,7 +59,7 @@ export default function DoctorDashboard() {
           <table className="table">
             <thead>
               <tr>
-                <th>ID / File</th>
+                <th>Patient Name</th>
                 <th>Status</th>
                 <th>Action</th>
               </tr>
@@ -68,20 +68,29 @@ export default function DoctorDashboard() {
               {needsReview.length === 0 && (
                 <tr><td colSpan={3} className="text-center py-8 text-surface-500 text-sm">No prescriptions currently need your review.</td></tr>
               )}
-              {needsReview.map(pres => (
-                <tr key={pres.id}>
-                  <td>
-                    <p className="font-mono text-xs font-semibold text-surface-900">{pres.id.split('-')[0]}</p>
-                    <p className="text-xs text-surface-500 truncate max-w-[200px]">{pres.file_assets?.original_name || 'No file'}</p>
-                  </td>
-                  <td><StatusBadge status={pres.status} /></td>
-                  <td>
-                    <Link to={`/doctor/prescriptions/${pres.id}`} className="btn-primary btn-sm no-underline inline-flex">
-                      Review <ArrowRight className="w-3 h-3 ml-1" />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {needsReview.map(pres => {
+                const patientName = pres.patient
+                  ? `${pres.patient.first_name || ''} ${pres.patient.last_name || ''}`.trim()
+                  : '';
+                return (
+                  <tr key={pres.id}>
+                    <td>
+                      <p className="font-medium text-sm text-surface-900">
+                        {patientName || (pres.patient_id ? `Patient #${pres.patient_id.slice(0, 8)}` : 'Unassigned')}
+                      </p>
+                      {pres.patient?.phone && (
+                        <p className="text-xs text-surface-400">{pres.patient.phone}</p>
+                      )}
+                    </td>
+                    <td><StatusBadge status={pres.status} /></td>
+                    <td>
+                      <Link to={`/doctor/prescriptions/${pres.id}`} className="btn-primary btn-sm no-underline inline-flex">
+                        Review <ArrowRight className="w-3 h-3 ml-1" />
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

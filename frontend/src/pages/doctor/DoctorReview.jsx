@@ -3,12 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequest } from '../../lib/api';
-import { PageSpinner } from '../../components/Spinner';
+import { PageSpinner, Spinner } from '../../components/Spinner';
 import { EmptyState, ErrorState } from '../../components/States';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
-import { ArrowLeft, FileText, CheckCircle, XCircle, AlertTriangle, Edit3 } from 'lucide-react';
+import { ArrowLeft, FileText, CheckCircle, XCircle, AlertTriangle, Edit3, ExternalLink } from 'lucide-react';
 
 export default function DoctorReview() {
   const { id } = useParams();
@@ -30,6 +30,14 @@ export default function DoctorReview() {
   });
 
   const pres = data?.data;
+
+  const { data: fileData, isLoading: fileLoading } = useQuery({
+    queryKey: ['prescription-file', id],
+    queryFn: () => apiRequest(`/api/prescriptions/${id}/file`, {}, session),
+    enabled: !!pres?.file_assets,
+  });
+
+  const fileUrl = fileData?.data?.url;
 
   // Mutations
   const correctMutation = useMutation({
@@ -101,7 +109,20 @@ export default function DoctorReview() {
             Review Prescription
             <StatusBadge status={pres.status} />
           </h1>
-          <p className="font-mono text-xs text-surface-500 mt-1">{pres.id}</p>
+          <div className="flex items-center gap-2 mt-1 text-sm text-surface-600">
+            {pres.patient ? (
+              <span className="font-semibold text-surface-900">
+                Patient: {pres.patient.first_name} {pres.patient.last_name}
+                {pres.patient.phone && <span className="text-surface-400 font-normal ml-1">({pres.patient.phone})</span>}
+              </span>
+            ) : (
+              <span className="text-surface-400 italic">
+                {pres.patient_id ? `Patient #${pres.patient_id.slice(0, 8)}` : 'Unassigned Patient'}
+              </span>
+            )}
+            <span className="text-surface-300">•</span>
+            <span className="font-mono text-xs text-surface-400">{pres.id}</span>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <button onClick={() => setShowRejectModal(true)} disabled={rejectMutation.isPending || pres.status === 'REJECTED' || pres.status === 'CONFIRMED'} className="btn-secondary text-danger">
@@ -114,22 +135,93 @@ export default function DoctorReview() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
-        {/* Left: Original Image */}
+        {/* Left: Original Image / Document */}
         <div>
-          <div className="card">
-            <div className="card-header bg-surface-50 border-b border-surface-200">
+          <div className="card overflow-hidden">
+            <div className="card-header bg-surface-50 border-b border-surface-200 flex items-center justify-between">
               <h3 className="font-semibold text-surface-900 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-brand-600" /> Original File
               </h3>
+              {fileUrl && (
+                <a
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-ghost btn-sm text-brand-600 hover:text-brand-700 flex items-center gap-1.5 text-xs font-medium"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
+                </a>
+              )}
             </div>
-            <div className="p-4 bg-surface-100 min-h-[400px] flex items-center justify-center rounded-b-xl border border-t-0 border-surface-200">
-              <div className="text-center space-y-4">
-                <p className="text-sm text-surface-500">Image preview would be embedded here via signed URL.</p>
-                <Link to={`/doctor/prescriptions/${id}`} className="btn-secondary btn-sm inline-flex no-underline">
-                  View File Details
-                </Link>
+
+            {!pres.file_assets ? (
+              <div className="p-8 text-center min-h-[350px] flex flex-col items-center justify-center bg-surface-50">
+                <FileText className="w-12 h-12 text-surface-300 mb-3" />
+                <p className="font-semibold text-surface-700 text-base">No file attached</p>
+                <p className="text-sm text-surface-400 mt-1">This prescription has no document image or PDF attached.</p>
               </div>
-            </div>
+            ) : fileLoading ? (
+              <div className="min-h-[400px] flex flex-col items-center justify-center p-6 bg-surface-50">
+                <Spinner size="lg" />
+                <p className="text-xs text-surface-500 mt-3 font-medium">Loading prescription preview…</p>
+              </div>
+            ) : fileUrl ? (
+              <div className="bg-surface-50 flex flex-col">
+                {pres.file_assets.mime_type?.startsWith('image/') ? (
+                  <div className="p-4 flex flex-col items-center justify-center min-h-[400px] max-h-[600px] bg-surface-100/50 overflow-auto">
+                    <img
+                      src={fileUrl}
+                      alt={pres.file_assets.original_name || 'Prescription Image'}
+                      className="max-h-[520px] w-auto max-w-full object-contain rounded-lg shadow-sm border border-surface-200"
+                    />
+                  </div>
+                ) : pres.file_assets.mime_type === 'application/pdf' ? (
+                  <div className="h-[520px] w-full">
+                    <iframe
+                      src={fileUrl}
+                      title={pres.file_assets.original_name || 'Prescription PDF'}
+                      className="w-full h-full border-0"
+                    />
+                  </div>
+                ) : (
+                  <div className="p-8 text-center min-h-[350px] flex flex-col items-center justify-center">
+                    <FileText className="w-12 h-12 text-brand-600 mb-3" />
+                    <p className="font-medium text-surface-900">{pres.file_assets.original_name}</p>
+                    <p className="text-xs text-surface-500 mt-1 uppercase mb-4">{pres.file_assets.mime_type}</p>
+                    <a
+                      href={fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-primary btn-sm inline-flex items-center gap-1.5"
+                    >
+                      <ExternalLink className="w-4 h-4" /> View / Download Document
+                    </a>
+                  </div>
+                )}
+                <div className="p-3 bg-surface-100 border-t border-surface-200 flex items-center justify-between text-xs text-surface-600">
+                  <div className="truncate mr-2">
+                    <span className="font-medium text-surface-800">{pres.file_assets.original_name}</span>
+                    <span className="text-surface-400 ml-2 uppercase text-[10px] font-mono">
+                      {pres.file_assets.mime_type?.split('/').pop()}
+                    </span>
+                  </div>
+                  <a
+                    href={fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1 shrink-0"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Fullscreen
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="p-8 text-center min-h-[350px] flex flex-col items-center justify-center bg-surface-50">
+                <AlertTriangle className="w-10 h-10 text-warning mb-2" />
+                <p className="text-sm font-medium text-surface-700">Could not load preview</p>
+                <p className="text-xs text-surface-400 mt-1">Please try opening the file directly.</p>
+              </div>
+            )}
           </div>
         </div>
 
