@@ -7,39 +7,39 @@ export default function ArchitecturePage() {
       <p className="text-surface-600 mb-10">High-level overview of the Pharmacon technical stack and data flow.</p>
 
       {/* Diagram */}
-      <div className="bg-white rounded-xl border border-surface-200 p-8 mb-12 shadow-sm">
-        <h2 className="text-lg font-semibold text-surface-900 mb-6 text-center">Data Flow Diagram</h2>
+      <div className="bg-[#0c1427]/90 rounded-2xl border border-sky-500/20 p-8 mb-12 shadow-card backdrop-blur-md">
+        <h2 className="text-lg font-bold text-white mb-6 text-center tracking-tight">Data Flow Diagram</h2>
         
         <div className="flex flex-col items-center gap-4">
-          <div className="w-64 border-2 border-brand-200 bg-brand-50 p-4 rounded-xl text-center">
-            <Layout className="w-6 h-6 text-brand-600 mx-auto mb-2" />
-            <p className="font-semibold text-brand-900">React Frontend (Vite)</p>
-            <p className="text-xs text-brand-700">UI &amp; State Management</p>
+          <div className="w-64 border border-sky-500/40 bg-sky-950/40 p-4 rounded-xl text-center shadow-[0_0_15px_rgba(56,189,248,0.15)]">
+            <Layout className="w-6 h-6 text-sky-400 mx-auto mb-2" />
+            <p className="font-bold text-white">React Frontend (Vite)</p>
+            <p className="text-xs text-sky-300">UI &amp; State Management</p>
           </div>
           
-          <ArrowDown className="w-6 h-6 text-surface-400" />
+          <ArrowDown className="w-6 h-6 text-sky-400/60" />
           
-          <div className="w-64 border-2 border-surface-300 bg-surface-50 p-4 rounded-xl text-center">
-            <Server className="w-6 h-6 text-surface-700 mx-auto mb-2" />
-            <p className="font-semibold text-surface-900">Node.js / Express API</p>
-            <p className="text-xs text-surface-600">Business Logic &amp; Auth Verification</p>
+          <div className="w-64 border border-blue-500/40 bg-blue-950/40 p-4 rounded-xl text-center shadow-[0_0_15px_rgba(59,130,246,0.15)]">
+            <Server className="w-6 h-6 text-blue-400 mx-auto mb-2" />
+            <p className="font-bold text-white">Node.js / Express API</p>
+            <p className="text-xs text-blue-300">Business Logic &amp; Auth Verification</p>
           </div>
           
           <div className="flex items-center gap-4">
-            <ArrowDown className="w-6 h-6 text-surface-400 rotate-45 transform origin-bottom-right" />
-            <ArrowDown className="w-6 h-6 text-surface-400 -rotate-45 transform origin-bottom-left" />
+            <ArrowDown className="w-6 h-6 text-sky-400/60 rotate-45 transform origin-bottom-right" />
+            <ArrowDown className="w-6 h-6 text-sky-400/60 -rotate-45 transform origin-bottom-left" />
           </div>
 
           <div className="flex gap-8">
-            <div className="w-48 border-2 border-info-200 bg-info-light p-4 rounded-xl text-center">
-              <Database className="w-6 h-6 text-info-dark mx-auto mb-2" />
-              <p className="font-semibold text-info-dark">Supabase Postgres</p>
-              <p className="text-xs text-info">Relational Data &amp; RLS</p>
+            <div className="w-48 border border-emerald-500/40 bg-emerald-950/40 p-4 rounded-xl text-center shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+              <Database className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
+              <p className="font-bold text-emerald-300">Supabase Postgres</p>
+              <p className="text-xs text-emerald-400/70">Relational Data &amp; RLS</p>
             </div>
-            <div className="w-48 border-2 border-success-200 bg-success-light p-4 rounded-xl text-center">
-              <ShieldCheck className="w-6 h-6 text-success-dark mx-auto mb-2" />
-              <p className="font-semibold text-success-dark">Supabase Auth/Storage</p>
-              <p className="text-xs text-success">Identity &amp; Secure Files</p>
+            <div className="w-48 border border-purple-500/40 bg-purple-950/40 p-4 rounded-xl text-center shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+              <ShieldCheck className="w-6 h-6 text-purple-400 mx-auto mb-2" />
+              <p className="font-bold text-purple-300">Supabase Auth/Storage</p>
+              <p className="text-xs text-purple-400/70">Identity &amp; Secure Files</p>
             </div>
           </div>
         </div>

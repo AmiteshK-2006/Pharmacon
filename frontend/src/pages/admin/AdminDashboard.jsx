@@ -8,16 +8,16 @@ import { Users, FileText, Pill, ClipboardList, Activity } from 'lucide-react';
 
 function StatCard({ title, value, icon: Icon, loading }) {
   return (
-    <div className="card card-body flex items-center gap-4">
-      <div className="w-12 h-12 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
-        <Icon className="w-6 h-6 text-brand-600" />
+    <div className="card card-body flex items-center gap-4 hover:border-brand-300 hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200">
+      <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-brand-600 via-brand-500 to-sky-400 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-brand-500/25">
+        <Icon className="w-6 h-6" />
       </div>
       <div>
-        <p className="text-sm font-medium text-surface-500">{title}</p>
+        <p className="text-sm font-semibold text-surface-500">{title}</p>
         {loading ? (
-          <div className="skeleton w-16 h-8 mt-1 rounded" />
+          <div className="skeleton w-16 h-8 mt-1 rounded-lg" />
         ) : (
-          <p className="text-2xl font-bold text-surface-900">{value}</p>
+          <p className="text-2xl font-extrabold text-surface-900 tracking-tight">{value}</p>
         )}
       </div>
     </div>

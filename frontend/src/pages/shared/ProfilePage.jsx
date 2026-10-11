@@ -12,13 +12,13 @@ export default function ProfilePage() {
       <div className="card">
         <div className="card-header border-b-0 pb-0">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-brand-100 rounded-full flex items-center justify-center">
-              <span className="text-2xl font-bold text-brand-700">
+            <div className="w-16 h-16 bg-gradient-to-tr from-sky-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-sky-500/30">
+              <span className="text-2xl font-black text-slate-950">
                 {profile.first_name?.[0]}{profile.last_name?.[0]}
               </span>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-surface-900">{profile.first_name} {profile.last_name}</h1>
+              <h1 className="text-2xl font-bold text-white tracking-tight">{profile.first_name} {profile.last_name}</h1>
               <p className="text-surface-500 font-mono text-sm">{profile.id}</p>
             </div>
           </div>

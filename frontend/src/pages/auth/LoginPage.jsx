@@ -52,16 +52,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-surface-50">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 relative overflow-hidden bg-gradient-to-b from-[#030712] via-[#060d20] to-[#040816]">
+      <div className="absolute inset-0 medical-grid opacity-60 pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[550px] bg-gradient-to-tr from-sky-500/25 via-blue-600/20 to-cyan-400/20 blur-3xl rounded-full pointer-events-none" />
       <ToastContainer />
-      <div className="w-full max-w-md">
+
+      <div className="relative z-30 w-full max-w-md">
         {/* Card */}
-        <div className="card">
-          <div className="card-header text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-600 rounded-xl mb-3">
-              <Pill className="w-6 h-6 text-white" />
+        <div className="card shadow-[0_0_50px_rgba(14,165,233,0.18),0_20px_40px_rgba(0,0,0,0.8)] border border-sky-500/30 backdrop-blur-2xl bg-[#0c1427]/95">
+          <div className="card-header text-center py-6 bg-gradient-to-b from-sky-500/10 to-transparent border-b border-surface-200/60">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-sky-400 to-blue-600 rounded-2xl mb-3 shadow-[0_0_25px_rgba(56,189,248,0.4)] ring-4 ring-sky-500/20">
+              <Pill className="w-7 h-7 text-slate-950 font-bold" />
             </div>
-            <h1 className="text-xl font-semibold text-surface-900">
+            <h1 className="text-2xl font-extrabold text-white tracking-tight">
               {isRegister ? 'Create an Account' : 'Sign in to Pharmacon'}
             </h1>
             <p className="text-sm text-surface-500 mt-1">

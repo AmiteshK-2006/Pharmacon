@@ -86,14 +86,14 @@ export default function PrescriptionDetailPage() {
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
           <div className="card card-body">
-            <h3 className="font-semibold text-surface-900 mb-4 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-brand-600" /> Original File
+            <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-sky-400" /> Original File
             </h3>
             {pres.file_assets ? (
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-surface-50 rounded-lg border border-surface-200">
+                <div className="flex items-center justify-between p-3 bg-[#070d1e] rounded-xl border border-surface-200/80">
                   <div className="truncate mr-2">
-                    <p className="font-medium text-sm text-surface-900">{pres.file_assets.original_name}</p>
+                    <p className="font-medium text-sm text-white">{pres.file_assets.original_name}</p>
                     <p className="text-xs text-surface-500 uppercase">{pres.file_assets.mime_type.split('/').pop()}</p>
                   </div>
                   <button onClick={handleDownload} disabled={downloading} className="btn-secondary btn-sm flex-shrink-0">
@@ -165,18 +165,18 @@ export default function PrescriptionDetailPage() {
             <h3 className="font-semibold text-surface-900 mb-4">Status History</h3>
             <div className="space-y-4">
               {history.map((h, i) => (
-                <div key={h.id} className="relative pl-6 pb-4 border-l border-surface-200 last:border-0 last:pb-0">
-                  <div className={`absolute w-3 h-3 rounded-full -left-[6.5px] top-1 ${i === 0 ? 'bg-brand-500 shadow-[0_0_0_3px_#eef7ff]' : 'bg-surface-300'}`} />
+                <div key={h.id} className="relative pl-6 pb-4 border-l border-surface-200/80 last:border-0 last:pb-0">
+                  <div className={`absolute w-3 h-3 rounded-full -left-[6.5px] top-1 ${i === 0 ? 'bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.7)]' : 'bg-surface-700'}`} />
                   <p className="font-medium text-sm text-surface-900 leading-none mb-1"><StatusBadge status={h.status} /></p>
                   <p className="text-xs text-surface-500">{new Date(h.created_at).toLocaleString()}</p>
-                  {h.notes && <p className="text-xs text-surface-600 mt-2 bg-surface-50 p-2 rounded">{h.notes}</p>}
+                  {h.notes && <p className="text-xs text-surface-400 mt-2 bg-[#070d1e] p-2 rounded-lg border border-surface-200/50">{h.notes}</p>}
                 </div>
               ))}
             </div>
           </div>
           {role === 'clinic_staff' && (
-            <div className="mt-4 p-4 border border-surface-200 rounded-lg bg-surface-50">
-              <h4 className="font-semibold text-surface-900 text-sm mb-3">Assignment</h4>
+            <div className="mt-4 p-4 border border-surface-200/80 rounded-xl bg-[#070d1e]">
+              <h4 className="font-bold text-white text-sm mb-3">Assignment</h4>
               <div className="space-y-2">
                 <div>
                   <p className="text-xs text-surface-500">Patient</p>

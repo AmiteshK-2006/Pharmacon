@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import DnaStrand from './components/DnaStrand';
 
 // Layouts
 import PublicLayout from './layouts/PublicLayout';
@@ -66,7 +67,16 @@ function RoleRedirect() {
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      {/* ─── Global Persistent 3D Rotating DNA Strand (Between reference lines) ─── */}
+      <div
+        aria-hidden="true"
+        className="fixed bottom-0 right-0 w-[360px] h-[300px] sm:w-[400px] sm:h-[340px] pointer-events-none z-20 opacity-85 md:opacity-95 select-none overflow-hidden"
+      >
+        <DnaStrand className="w-full h-full" />
+      </div>
+
+      <Routes>
       {/* Public */}
       <Route element={<PublicLayout />}>
         <Route path="/" element={<HomePage />} />
@@ -135,5 +145,6 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }

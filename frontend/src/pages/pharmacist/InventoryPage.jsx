@@ -192,8 +192,8 @@ export default function InventoryPage() {
           ...(selectedMedicine ? [{ key: 'transactions', label: `Transactions — ${selectedMedicine.generic_name || selectedMedicine.name}`, icon: RefreshCw }] : []),
         ].map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              activeTab === key ? 'bg-white text-surface-900 shadow-card' : 'text-surface-500 hover:text-surface-700'
+            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-semibold rounded-lg transition-all ${
+              activeTab === key ? 'bg-gradient-to-r from-sky-400 to-blue-600 text-slate-950 font-bold shadow-md shadow-sky-400/25' : 'text-surface-400 hover:text-white hover:bg-surface-200/50'
             }`}
           >
             <Icon className="w-3.5 h-3.5" /> {label}

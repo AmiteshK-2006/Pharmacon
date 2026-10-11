@@ -15,93 +15,106 @@
   body {
     @apply bg-surface-50 text-surface-900 font-sans antialiased;
     min-height: 100vh;
+    background-color: #030712;
+    background-image:
+      radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.28) 0px, transparent 50%),
+      radial-gradient(at 100% 20%, rgba(56, 189, 248, 0.22) 0px, transparent 45%),
+      radial-gradient(at 50% 90%, rgba(37, 99, 235, 0.25) 0px, transparent 55%);
+    background-attachment: fixed;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight text-surface-900;
+    @apply font-bold tracking-tight text-white;
   }
 
   a {
-    @apply text-brand-600 hover:text-brand-700 transition-colors;
+    @apply text-sky-400 hover:text-sky-300 transition-colors;
   }
 
   input, select, textarea {
-    @apply text-surface-900;
+    @apply text-white;
   }
 }
 
 @layer components {
   /* ─── Buttons ─────────────────────────────────────────── */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 focus:ring-brand-500 shadow-sm;
+    @apply btn text-slate-950 font-bold active:scale-[0.98] focus:ring-sky-400;
+    background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+    box-shadow: 0 4px 16px -1px rgba(56, 189, 248, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+    box-shadow: 0 6px 24px -2px rgba(56, 189, 248, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
 
   .btn-secondary {
-    @apply btn bg-white text-surface-700 border border-surface-200 hover:bg-surface-50 active:bg-surface-100 focus:ring-brand-500 shadow-card;
+    @apply btn bg-surface-100/90 text-white border border-surface-200 hover:bg-surface-200 hover:border-surface-300 active:scale-[0.98] focus:ring-sky-400 shadow-xs backdrop-blur-sm;
   }
 
   .btn-danger {
-    @apply btn bg-danger text-white hover:bg-danger-dark focus:ring-danger shadow-sm;
+    @apply btn bg-rose-600 text-white hover:bg-rose-500 active:scale-[0.98] focus:ring-rose-500 shadow-sm;
+    box-shadow: 0 4px 14px -1px rgba(244, 63, 94, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
 
   .btn-ghost {
-    @apply btn text-surface-600 hover:bg-surface-100 hover:text-surface-900 focus:ring-brand-500;
+    @apply btn text-surface-500 hover:bg-surface-200/60 hover:text-white focus:ring-sky-400;
   }
 
-  .btn-sm { @apply px-3 py-1.5 text-xs; }
-  .btn-lg { @apply px-6 py-3 text-base; }
+  .btn-sm { @apply px-3.5 py-1.5 text-xs rounded-full; }
+  .btn-lg { @apply px-7 py-3 text-base rounded-full; }
 
   /* ─── Cards ───────────────────────────────────────────── */
   .card {
-    @apply bg-white rounded-xl border border-surface-200 shadow-card;
+    @apply bg-[#0c1427]/90 text-white rounded-2xl border border-sky-500/20 shadow-card backdrop-blur-md transition-all duration-200;
   }
 
   .card-body { @apply p-6; }
-  .card-header { @apply px-6 py-4 border-b border-surface-100; }
-  .card-footer { @apply px-6 py-4 border-t border-surface-100 bg-surface-50 rounded-b-xl; }
+  .card-header { @apply px-6 py-4 border-b border-surface-200/60 bg-gradient-to-r from-surface-100/90 to-[#0c1427]/80 rounded-t-2xl; }
+  .card-footer { @apply px-6 py-4 border-t border-surface-200/60 bg-surface-100/60 rounded-b-2xl; }
 
   /* ─── Form elements ───────────────────────────────────── */
   .form-label {
-    @apply block text-sm font-medium text-surface-700 mb-1.5;
+    @apply block text-sm font-semibold text-surface-600 mb-1.5;
   }
 
   .form-input {
-    @apply w-full px-3 py-2 text-sm bg-white border border-surface-200 rounded-lg
-           placeholder-surface-400
-           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500
-           disabled:bg-surface-100 disabled:text-surface-500 disabled:cursor-not-allowed
-           transition-colors;
+    @apply w-full px-3.5 py-2 text-sm bg-[#070d1c] border border-surface-200 rounded-xl
+           text-white placeholder-surface-500
+           focus:outline-none focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400
+           disabled:bg-surface-100/40 disabled:text-surface-500 disabled:cursor-not-allowed
+           transition-all duration-150 shadow-inner;
   }
 
   .form-select {
     @apply form-input appearance-none pr-10 bg-no-repeat cursor-pointer;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
-    background-position: right 0.5rem center;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
     background-size: 1.25rem;
   }
 
   .form-error {
-    @apply mt-1 text-xs text-danger;
+    @apply mt-1 text-xs text-rose-400;
   }
 
   /* ─── Badge / Status ──────────────────────────────────── */
   .badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-colors shadow-xs;
   }
 
-  .badge-blue    { @apply badge bg-info-light text-info-dark; }
-  .badge-green   { @apply badge bg-success-light text-success-dark; }
-  .badge-yellow  { @apply badge bg-warning-light text-warning-dark; }
-  .badge-red     { @apply badge bg-danger-light text-danger-dark; }
-  .badge-gray    { @apply badge bg-surface-100 text-surface-600; }
+  .badge-blue    { @apply badge bg-sky-950/80 text-sky-300 border-sky-500/40 shadow-[0_0_12px_rgba(56,189,248,0.25)]; }
+  .badge-green   { @apply badge bg-emerald-950/80 text-emerald-300 border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.25)]; }
+  .badge-yellow  { @apply badge bg-amber-950/80 text-amber-300 border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.25)]; }
+  .badge-red     { @apply badge bg-rose-950/80 text-rose-300 border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.25)]; }
+  .badge-gray    { @apply badge bg-surface-200/80 text-surface-400 border-surface-300/40; }
 
   /* ─── Tables ──────────────────────────────────────────── */
   .table-wrapper {
-    @apply overflow-x-auto rounded-xl border border-surface-200 shadow-card;
+    @apply overflow-x-auto rounded-2xl border border-surface-200/80 bg-[#0c1427]/90 shadow-card backdrop-blur-md;
   }
 
   .table {
@@ -109,33 +122,33 @@
   }
 
   .table th {
-    @apply px-4 py-3 text-xs font-semibold text-surface-500 uppercase tracking-wider bg-surface-50 border-b border-surface-200;
+    @apply px-4 py-3 text-xs font-semibold text-sky-400 uppercase tracking-wider bg-surface-100/90 border-b border-surface-200/80;
   }
 
   .table td {
-    @apply px-4 py-3 text-surface-700 border-b border-surface-100;
+    @apply px-4 py-3.5 text-surface-600 border-b border-surface-200/40;
   }
 
   .table tr:last-child td { @apply border-b-0; }
-  .table tbody tr:hover { @apply bg-surface-50 transition-colors; }
+  .table tbody tr:hover { @apply bg-sky-500/10 transition-colors; }
 
   /* ─── Alert / Banner ─────────────────────────────────── */
   .alert {
-    @apply flex items-start gap-3 p-4 rounded-lg text-sm;
+    @apply flex items-start gap-3 p-4 rounded-xl text-sm border shadow-sm backdrop-blur-sm;
   }
 
-  .alert-info    { @apply alert bg-info-light text-info-dark border border-blue-200; }
-  .alert-success { @apply alert bg-success-light text-success-dark border border-green-200; }
-  .alert-warning { @apply alert bg-warning-light text-warning-dark border border-amber-200; }
-  .alert-danger  { @apply alert bg-danger-light text-danger-dark border border-red-200; }
+  .alert-info    { @apply alert bg-sky-950/80 text-sky-200 border-sky-800; }
+  .alert-success { @apply alert bg-emerald-950/80 text-emerald-200 border-emerald-800; }
+  .alert-warning { @apply alert bg-amber-950/80 text-amber-200 border-amber-800; }
+  .alert-danger  { @apply alert bg-rose-950/80 text-rose-200 border-rose-800; }
 
   /* ─── Sidebar ─────────────────────────────────────────── */
   .sidebar-item {
-    @apply flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-surface-600 hover:bg-surface-100 hover:text-surface-900 transition-colors cursor-pointer;
+    @apply flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl text-surface-500 hover:bg-surface-200/60 hover:text-white transition-all duration-150 cursor-pointer;
   }
 
   .sidebar-item-active {
-    @apply sidebar-item bg-brand-50 text-brand-700 hover:bg-brand-100 hover:text-brand-800;
+    @apply sidebar-item bg-gradient-to-r from-sky-400 to-blue-600 text-slate-950 font-bold shadow-lg shadow-sky-400/25;
   }
 
   /* ─── Page header ─────────────────────────────────────── */
@@ -144,7 +157,7 @@
   }
 
   .page-title {
-    @apply text-2xl font-semibold text-surface-900;
+    @apply text-2xl font-extrabold text-white tracking-tight;
   }
 
   .page-subtitle {
@@ -153,11 +166,20 @@
 
   /* ─── Loading skeleton ───────────────────────────────── */
   .skeleton {
-    @apply bg-surface-200 rounded animate-pulse;
+    @apply bg-surface-200/80 rounded animate-pulse;
   }
 }
 
 @layer utilities {
   .text-balance { text-wrap: balance; }
   .scrollbar-thin { scrollbar-width: thin; }
+
+  .medical-grid {
+    background-image: radial-gradient(rgba(56, 189, 248, 0.25) 1.5px, transparent 1.5px);
+    background-size: 28px 28px;
+  }
+
+  .medical-glow {
+    background: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.3) 0%, rgba(2, 132, 199, 0.15) 40%, transparent 75%);
+  }
 }

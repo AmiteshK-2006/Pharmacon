@@ -242,10 +242,10 @@ export default function DoctorReview() {
             ) : (
               <div className="space-y-3">
                 {fields.map(f => (
-                  <div key={f.id} className={`p-3 rounded-lg border ${f.needs_review && !f.is_corrected ? 'border-amber-300 bg-amber-50' : 'border-surface-200 bg-white'} shadow-sm`}>
+                  <div key={f.id} className={`p-3 rounded-xl border ${f.needs_review && !f.is_corrected ? 'border-amber-400/40 bg-amber-950/25' : 'border-surface-200/80 bg-[#070d1e]/80'} shadow-sm`}>
                     <div className="flex justify-between items-start mb-1">
-                      <span className="font-mono text-xs font-semibold text-surface-600 uppercase tracking-wide">{f.field_name}</span>
-                      <button onClick={() => openCorrection(f)} className="text-brand-600 hover:text-brand-800 p-1 rounded hover:bg-brand-50" title="Edit value">
+                      <span className="font-mono text-xs font-semibold text-sky-400 uppercase tracking-wide">{f.field_name}</span>
+                      <button onClick={() => openCorrection(f)} className="text-sky-400 hover:text-sky-300 p-1 rounded hover:bg-sky-500/10" title="Edit value">
                         <Edit3 className="w-3.5 h-3.5" />
                       </button>
                     </div>
