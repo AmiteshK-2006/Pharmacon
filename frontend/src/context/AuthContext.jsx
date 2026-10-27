@@ -34,18 +34,29 @@ export function AuthProvider({ children }) {
     try {
       const { data } = await apiRequest('/api/auth/me', {}, session);
       setProfile(data);
+      return data;
     } catch (err) {
       console.error('Failed to fetch profile:', err.message);
       setProfile(null);
+      return null;
     } finally {
       setLoading(false);
     }
   }
 
   async function signIn(email, password) {
+    setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    return data;
+    if (error) {
+      setLoading(false);
+      throw error;
+    }
+    setSession(data.session);
+    let userProfile = null;
+    if (data.session) {
+      userProfile = await fetchProfile(data.session);
+    }
+    return { ...data, profile: userProfile, userRole: userProfile?.role };
   }
 
   async function signUp(email, password, firstName, lastName) {

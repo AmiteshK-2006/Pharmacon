@@ -58,7 +58,14 @@ import PrescriptionDetailPage from './pages/shared/PrescriptionDetailPage';
 import ProfilePage from './pages/shared/ProfilePage';
 
 function RoleRedirect() {
-  const { role } = useAuth();
+  const { role, loading, profile, isAuthenticated } = useAuth();
+  if (loading || (isAuthenticated && !profile)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-8 h-8 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
   const destinations = {
     admin: '/admin',
     doctor: '/doctor',

@@ -19,14 +19,24 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const dashboardPath = {
-    admin: '/admin', doctor: '/doctor', pharmacist: '/pharmacist',
-    clinic_staff: '/clinic', patient: '/patient',
-  }[role] || '/dashboard';
+  const destinations = {
+    admin: '/admin',
+    doctor: '/doctor',
+    pharmacist: '/pharmacist',
+    clinic_staff: '/clinic',
+    patient: '/patient',
+    researcher: '/researcher',
+  };
+
+  const rolePrefix = role === 'clinic_staff' ? '/clinic' : `/${role}`;
+  const fromPath = location.state?.from?.pathname;
+  const targetDashboard = (fromPath && fromPath.startsWith(rolePrefix))
+    ? fromPath
+    : (destinations[role] || '/dashboard');
 
   // Already logged in
-  if (isAuthenticated) {
-    navigate(location.state?.from?.pathname || dashboardPath, { replace: true });
+  if (isAuthenticated && role) {
+    navigate(targetDashboard, { replace: true });
     return null;
   }
 
@@ -41,8 +51,14 @@ export default function LoginPage() {
         setIsRegister(false);
         setPassword('');
       } else {
-        await signIn(email.trim(), password);
-        navigate(location.state?.from?.pathname || '/dashboard', { replace: true });
+        const authResult = await signIn(email.trim(), password);
+        const resolvedRole = authResult?.userRole || role;
+        const resolvedPrefix = resolvedRole === 'clinic_staff' ? '/clinic' : `/${resolvedRole}`;
+        const finalPath = (fromPath && fromPath.startsWith(resolvedPrefix))
+          ? fromPath
+          : (destinations[resolvedRole] || '/dashboard');
+
+        navigate(finalPath, { replace: true });
       }
     } catch (err) {
       setError(err.message || 'Action failed. Please try again.');
