@@ -63,7 +63,7 @@ export async function uploadPrescription(req, res, next) {
       .select().single();
     if (faError) throw new AppError(faError.message, 500);
 
-    // 3. Create prescription with CONFIRMED status so both patient and doctor can immediately view
+    // 3. Create prescription in review phase (accessible only to doctor & patient)
     const prescriptionId = uuidv4();
     const { data: prescription, error: presError } = await supabaseAdmin
       .from('prescriptions')
@@ -73,8 +73,8 @@ export async function uploadPrescription(req, res, next) {
         doctor_id: doctor_id || null,
         uploader_id: req.user.id,
         file_asset_id: fileAsset.id,
-        status: 'CONFIRMED',
-        anonymized_status: 'PROCESSING',
+        status: 'NEEDS_REVIEW',
+        anonymized_status: 'PENDING',
         notes: notes || null
       })
       .select().single();
@@ -83,28 +83,23 @@ export async function uploadPrescription(req, res, next) {
     // 4. Initial status history
     await supabaseAdmin.from('prescription_status_history').insert({
       prescription_id: prescriptionId,
-      status: 'CONFIRMED',
+      status: 'NEEDS_REVIEW',
       actor_id: req.user.id,
-      notes: 'Prescription uploaded and available for clinical review'
+      notes: 'Prescription uploaded and awaiting physician review'
     });
 
-    // 5. Trigger external de-identification pipeline in background
-    processPrescriptionAnonymization(prescriptionId).catch(err => {
-      console.error(`[Upload] Background anonymization failed for prescription ${prescriptionId}:`, err);
-    });
-
-    // 6. Audit log
+    // 5. Audit log
     createAuditLog({
       actor_user_id: req.user.id,
       action: 'PRESCRIPTION_UPLOADED',
       entity_type: 'prescription',
       entity_id: prescriptionId,
-      metadata: { patient_id, doctor_id, anonymized_status: 'PROCESSING' }
+      metadata: { patient_id, doctor_id, status: 'NEEDS_REVIEW' }
     });
 
     res.status(201).json({
       data: prescription,
-      message: 'Prescription uploaded successfully. Document de-identification queued for research access.',
+      message: 'Prescription uploaded successfully. Queued for doctor review.',
     });
   } catch (err) { next(err); }
 }
@@ -113,12 +108,13 @@ export async function listPrescriptions(req, res, next) {
   try {
     const { role, id: userId } = req.user;
 
-    // Fast, zero-PII path for researchers
+    // Fast, zero-PII path for researchers: ONLY clinical prescriptions confirmed by doctor
     if (role === 'researcher') {
       const { data, error } = await supabaseAdmin
         .from('prescriptions')
         .select('id, created_at, status, anonymized_status, anonymization_metadata, anonymized_file_asset_id, file_asset_id')
         .not('file_asset_id', 'is', null)
+        .in('status', ['CONFIRMED', 'DISPENSING', 'DISPENSED'])
         .order('created_at', { ascending: false });
 
       if (error) throw new AppError(error.message, 500);
@@ -265,13 +261,18 @@ export async function getAnonymizedPrescriptionFile(req, res, next) {
     const { id } = req.params;
     const { data: prescription, error } = await supabaseAdmin
       .from('prescriptions')
-      .select('id, anonymized_file_asset_id, file_asset_id, anonymized_status')
+      .select('id, status, anonymized_file_asset_id, file_asset_id, anonymized_status')
       .eq('id', id).single();
     if (error || !prescription) throw new AppError('Prescription not found', 404);
 
+    // Security Gate: Ensure prescription is confirmed before research release
+    if (prescription.status !== 'CONFIRMED' && prescription.status !== 'DISPENSING' && prescription.status !== 'DISPENSED') {
+      throw new AppError('This prescription is still in physician review and has not yet been confirmed for de-identification.', 400);
+    }
+
     let targetAssetId = prescription.anonymized_file_asset_id;
 
-    // Self-healing: If not yet anonymized or pending, run pipeline on-demand!
+    // Self-healing: If confirmed but not yet anonymized or pending, run pipeline on-demand!
     if (!targetAssetId || prescription.anonymized_status !== 'COMPLETED') {
       const result = await processPrescriptionAnonymization(id);
       if (result.success && result.assetId) {
@@ -463,6 +464,12 @@ export async function confirmPrescription(req, res, next) {
 
     await supabaseAdmin.from('prescription_status_history').insert({ prescription_id: id, status: 'CONFIRMED', actor_id: req.user.id });
     createAuditLog({ actor_user_id: req.user.id, action: 'PRESCRIPTION_CONFIRMED', entity_type: 'prescription', entity_id: id });
+
+    // Doctor confirmation complete: Trigger external de-identification pipeline for research release
+    processPrescriptionAnonymization(id).catch(err => {
+      console.error(`[Doctor Confirm] Background anonymization failed for prescription ${id}:`, err);
+    });
+
     res.json({ data });
   } catch (err) { next(err); }
 }
