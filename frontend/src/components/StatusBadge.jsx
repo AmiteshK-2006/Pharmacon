@@ -26,12 +26,17 @@ const STATUS_MAP = {
   in_progress:                { label: 'In Progress',         cls: 'badge-blue'   },
   completed:                  { label: 'Completed',           cls: 'badge-green'  },
   delayed:                    { label: 'Delayed',             cls: 'badge-red'    },
+  // Anonymization statuses
+  COMPLETED:                  { label: 'De-Identified',       cls: 'badge-green'  },
+  ANONYMIZED:                 { label: 'De-Identified',       cls: 'badge-green'  },
+  FAILED:                     { label: 'Anonymize Failed',    cls: 'badge-red'    },
   // Roles
   admin:                      { label: 'Admin',               cls: 'badge-red'    },
   doctor:                     { label: 'Doctor',              cls: 'badge-blue'   },
   pharmacist:                 { label: 'Pharmacist',          cls: 'badge-green'  },
   clinic_staff:               { label: 'Clinic Staff',        cls: 'badge-yellow' },
   patient:                    { label: 'Patient',             cls: 'badge-gray'   },
+  researcher:                 { label: 'Researcher',          cls: 'badge-purple' },
 };
 
 export function StatusBadge({ status }) {

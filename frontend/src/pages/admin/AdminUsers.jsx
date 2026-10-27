@@ -86,6 +86,7 @@ export default function AdminUsers() {
                       <option value="clinic_staff">Clinic Staff</option>
                       <option value="doctor">Doctor</option>
                       <option value="pharmacist">Pharmacist</option>
+                      <option value="researcher">Researcher</option>
                       <option value="admin">Admin</option>
                     </select>
                     <button

@@ -2,6 +2,7 @@ import { supabaseAdmin } from '../config/supabase.js';
 import { AppError } from '../utils/AppError.js';
 import { createAuditLog } from '../services/AuditService.js';
 import * as AIService from '../services/PrescriptionRecognitionService.js';
+import { processPrescriptionAnonymization } from '../services/AnonymizerService.js';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -40,7 +41,7 @@ export async function uploadPrescription(req, res, next) {
     const ext = file.originalname.split('.').pop() || 'bin';
     const storagePath = `prescriptions/${fileId}.${ext}`;
 
-    // 1. Upload to private bucket
+    // 1. Upload original scan to private bucket (for patient, doctor, clinic staff)
     const { error: uploadError } = await supabaseAdmin.storage
       .from('private-prescriptions')
       .upload(storagePath, file.buffer, { contentType: file.mimetype, upsert: false });
@@ -49,39 +50,61 @@ export async function uploadPrescription(req, res, next) {
     // 2. Record file asset
     const { data: fileAsset, error: faError } = await supabaseAdmin
       .from('file_assets')
-      .insert({ id: fileId, bucket: 'private-prescriptions', storage_path: storagePath, original_name: file.originalname, mime_type: file.mimetype, size: file.size, visibility: 'private', uploaded_by: req.user.id })
+      .insert({
+        id: fileId,
+        bucket: 'private-prescriptions',
+        storage_path: storagePath,
+        original_name: file.originalname,
+        mime_type: file.mimetype,
+        size: file.size,
+        visibility: 'private',
+        uploaded_by: req.user.id
+      })
       .select().single();
     if (faError) throw new AppError(faError.message, 500);
 
-    // 3. Create prescription
+    // 3. Create prescription with CONFIRMED status so both patient and doctor can immediately view
     const prescriptionId = uuidv4();
     const { data: prescription, error: presError } = await supabaseAdmin
       .from('prescriptions')
-      .insert({ id: prescriptionId, patient_id: patient_id || null, doctor_id: doctor_id || null, uploader_id: req.user.id, file_asset_id: fileAsset.id, status: 'UPLOADED', notes: notes || null })
+      .insert({
+        id: prescriptionId,
+        patient_id: patient_id || null,
+        doctor_id: doctor_id || null,
+        uploader_id: req.user.id,
+        file_asset_id: fileAsset.id,
+        status: 'CONFIRMED',
+        anonymized_status: 'PROCESSING',
+        notes: notes || null
+      })
       .select().single();
     if (presError) throw new AppError(presError.message, 500);
 
     // 4. Initial status history
-    await supabaseAdmin.from('prescription_status_history').insert({ prescription_id: prescriptionId, status: 'UPLOADED', actor_id: req.user.id });
+    await supabaseAdmin.from('prescription_status_history').insert({
+      prescription_id: prescriptionId,
+      status: 'CONFIRMED',
+      actor_id: req.user.id,
+      notes: 'Prescription uploaded and available for clinical review'
+    });
 
-    // 5. Trigger AI (currently returns MODEL_UNAVAILABLE)
-    const { jobId, status: aiStatus } = await AIService.processPrescription(fileAsset.id);
+    // 5. Trigger external de-identification pipeline in background
+    processPrescriptionAnonymization(prescriptionId).catch(err => {
+      console.error(`[Upload] Background anonymization failed for prescription ${prescriptionId}:`, err);
+    });
 
-    // 6. Update prescription status based on AI availability
-    const newStatus = aiStatus === 'MODEL_UNAVAILABLE' ? 'NEEDS_REVIEW' : 'PROCESSING';
-    await supabaseAdmin.from('prescriptions').update({ ai_job_id: jobId, status: newStatus }).eq('id', prescriptionId);
-    if (newStatus === 'NEEDS_REVIEW') {
-      await supabaseAdmin.from('prescription_status_history').insert({ prescription_id: prescriptionId, status: 'NEEDS_REVIEW', actor_id: req.user.id, notes: 'AI model unavailable — manual review required' });
-    }
-
-    // 7. Audit
-    createAuditLog({ actor_user_id: req.user.id, action: 'PRESCRIPTION_UPLOADED', entity_type: 'prescription', entity_id: prescriptionId, metadata: { ai_status: aiStatus, patient_id, doctor_id } });
+    // 6. Audit log
+    createAuditLog({
+      actor_user_id: req.user.id,
+      action: 'PRESCRIPTION_UPLOADED',
+      entity_type: 'prescription',
+      entity_id: prescriptionId,
+      metadata: { patient_id, doctor_id, anonymized_status: 'PROCESSING' }
+    });
 
     res.status(201).json({
-      data: { ...prescription, status: newStatus, ai_status: aiStatus },
-      message: aiStatus === 'MODEL_UNAVAILABLE'
-        ? 'Prescription uploaded. AI model not yet integrated — manual review required.'
-        : 'Prescription uploaded and queued for AI processing.',
+      data: prescription,
+      message: 'Prescription uploaded successfully. Document de-identification queued for research access.',
     });
   } catch (err) { next(err); }
 }
@@ -89,9 +112,31 @@ export async function uploadPrescription(req, res, next) {
 export async function listPrescriptions(req, res, next) {
   try {
     const { role, id: userId } = req.user;
+
+    // Fast, zero-PII path for researchers
+    if (role === 'researcher') {
+      const { data, error } = await supabaseAdmin
+        .from('prescriptions')
+        .select('id, created_at, status, anonymized_status, anonymization_metadata, anonymized_file_asset_id, file_asset_id')
+        .not('file_asset_id', 'is', null)
+        .order('created_at', { ascending: false });
+
+      if (error) throw new AppError(error.message, 500);
+
+      const sanitized = (data || []).map(p => ({
+        id: p.id,
+        created_at: p.created_at,
+        status: p.status,
+        anonymized_status: p.anonymized_status || 'COMPLETED',
+        anonymization_metadata: p.anonymization_metadata || {},
+        anonymized_file_asset_id: p.anonymized_file_asset_id || p.file_asset_id,
+      }));
+      return res.json({ data: sanitized });
+    }
+
     let query = supabaseAdmin.from('prescriptions').select(`
       *,
-      file_assets(id, original_name, mime_type, size),
+      file_assets!file_asset_id(id, original_name, mime_type, size),
       prescription_items(*),
       prescription_extraction_fields(*),
       refill_requests(*),
@@ -106,7 +151,7 @@ export async function listPrescriptions(req, res, next) {
 
     // Fallback if PostgREST relation syntax encounters an issue
     if (error) {
-      let fallbackQuery = supabaseAdmin.from('prescriptions').select('*, file_assets(id, original_name, mime_type, size), prescription_items(*), prescription_extraction_fields(*), refill_requests(*)');
+      let fallbackQuery = supabaseAdmin.from('prescriptions').select('*, file_assets!file_asset_id(id, original_name, mime_type, size), prescription_items(*), prescription_extraction_fields(*), refill_requests(*)');
       if (role === 'patient') fallbackQuery = fallbackQuery.eq('patient_id', userId);
       else if (role === 'doctor') fallbackQuery = fallbackQuery.eq('doctor_id', userId);
       const resFallback = await fallbackQuery.order('created_at', { ascending: false });
@@ -130,15 +175,38 @@ export async function listPrescriptions(req, res, next) {
 export async function getPrescription(req, res, next) {
   try {
     const { id } = req.params;
+    const { role, id: userId } = req.user;
+
+    // Fast, zero-PII path for researchers
+    if (role === 'researcher') {
+      const { data, error } = await supabaseAdmin
+        .from('prescriptions')
+        .select('id, created_at, status, anonymized_status, anonymization_metadata, anonymized_file_asset_id, file_asset_id')
+        .eq('id', id)
+        .single();
+      if (error || !data) throw new AppError('Prescription not found', 404);
+
+      return res.json({
+        data: {
+          id: data.id,
+          created_at: data.created_at,
+          status: data.status,
+          anonymized_status: data.anonymized_status || 'COMPLETED',
+          anonymization_metadata: data.anonymization_metadata || {},
+          anonymized_file_asset_id: data.anonymized_file_asset_id || data.file_asset_id,
+        }
+      });
+    }
+
     let { data, error } = await supabaseAdmin
       .from('prescriptions')
-      .select('*, file_assets(*), prescription_extraction_fields(*), prescription_status_history(*), patient:profiles!prescriptions_patient_id_fkey(id, first_name, last_name, phone)')
+      .select('*, file_assets!file_asset_id(*), prescription_extraction_fields(*), prescription_status_history(*), patient:profiles!prescriptions_patient_id_fkey(id, first_name, last_name, phone)')
       .eq('id', id).single();
 
     if (error) {
       const fallback = await supabaseAdmin
         .from('prescriptions')
-        .select('*, file_assets(*), prescription_extraction_fields(*), prescription_status_history(*)')
+        .select('*, file_assets!file_asset_id(*), prescription_extraction_fields(*), prescription_status_history(*)')
         .eq('id', id).single();
       if (fallback.error || !fallback.data) throw new AppError('Prescription not found', 404);
       data = fallback.data;
@@ -154,7 +222,6 @@ export async function getPrescription(req, res, next) {
 
     if (!data) throw new AppError('Prescription not found', 404);
 
-    const { role, id: userId } = req.user;
     if (role === 'patient' && data.patient_id !== userId) throw new AppError('Access denied', 403);
     if (role === 'doctor' && data.doctor_id !== userId) throw new AppError('Access denied', 403);
 
@@ -165,13 +232,18 @@ export async function getPrescription(req, res, next) {
 export async function getPrescriptionFile(req, res, next) {
   try {
     const { id } = req.params;
+    const { role, id: userId } = req.user;
+
+    if (role === 'researcher') {
+      throw new AppError('Access denied: Researchers cannot access raw unanonymized files', 403);
+    }
+
     const { data: prescription, error } = await supabaseAdmin
       .from('prescriptions')
-      .select('patient_id, doctor_id, file_assets(bucket, storage_path)')
+      .select('patient_id, doctor_id, file_assets!file_asset_id(bucket, storage_path)')
       .eq('id', id).single();
     if (error || !prescription) throw new AppError('Prescription not found', 404);
 
-    const { role, id: userId } = req.user;
     if (role === 'patient' && prescription.patient_id !== userId) throw new AppError('Access denied', 403);
     if (role === 'doctor' && prescription.doctor_id !== userId) throw new AppError('Access denied', 403);
 
@@ -185,6 +257,68 @@ export async function getPrescriptionFile(req, res, next) {
     if (signError) throw new AppError(`Could not generate file URL: ${signError.message}`, 500);
 
     res.json({ data: { url: signed.signedUrl, expires_in: 300 } });
+  } catch (err) { next(err); }
+}
+
+export async function getAnonymizedPrescriptionFile(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { data: prescription, error } = await supabaseAdmin
+      .from('prescriptions')
+      .select('id, anonymized_file_asset_id, file_asset_id, anonymized_status')
+      .eq('id', id).single();
+    if (error || !prescription) throw new AppError('Prescription not found', 404);
+
+    let targetAssetId = prescription.anonymized_file_asset_id;
+
+    // Self-healing: If not yet anonymized or pending, run pipeline on-demand!
+    if (!targetAssetId || prescription.anonymized_status !== 'COMPLETED') {
+      const result = await processPrescriptionAnonymization(id);
+      if (result.success && result.assetId) {
+        targetAssetId = result.assetId;
+      }
+    }
+
+    if (!targetAssetId) {
+      throw new AppError('Anonymized file is still processing. Please try again in a few moments.', 404);
+    }
+
+    const { data: asset, error: assetError } = await supabaseAdmin
+      .from('file_assets')
+      .select('bucket, storage_path, original_name, mime_type')
+      .eq('id', targetAssetId)
+      .single();
+
+    if (assetError || !asset?.bucket || !asset?.storage_path) {
+      throw new AppError('Anonymized file asset details could not be found', 404);
+    }
+
+    const { data: signed, error: signError } = await supabaseAdmin.storage
+      .from(asset.bucket).createSignedUrl(asset.storage_path, 300);
+    if (signError) throw new AppError(`Could not generate file URL: ${signError.message}`, 500);
+
+    res.json({
+      data: {
+        url: signed.signedUrl,
+        expires_in: 300,
+        filename: asset.original_name,
+        mime_type: asset.mime_type,
+      },
+    });
+  } catch (err) { next(err); }
+}
+
+export async function triggerAnonymization(req, res, next) {
+  try {
+    const { id } = req.params;
+    const result = await processPrescriptionAnonymization(id);
+    if (!result.success) {
+      throw new AppError(`Anonymization failed: ${result.error}`, 500);
+    }
+    res.json({
+      message: 'Prescription anonymized successfully',
+      data: result,
+    });
   } catch (err) { next(err); }
 }
 

@@ -3,7 +3,7 @@ import { AppError } from '../utils/AppError.js';
 import { z } from 'zod';
 
 const updateRoleSchema = z.object({
-  role: z.enum(['admin', 'doctor', 'pharmacist', 'clinic_staff', 'patient']),
+  role: z.enum(['admin', 'doctor', 'pharmacist', 'clinic_staff', 'patient', 'researcher']),
 });
 
 export async function listUsers(req, res, next) {

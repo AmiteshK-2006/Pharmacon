@@ -44,11 +44,16 @@ const NAV_CONFIG = {
     { to: '/patient/refills', label: 'Refill Requests', icon: RefreshCw },
     { to: '/patient/profile', label: 'Profile', icon: Settings },
   ],
+  researcher: [
+    { to: '/researcher', label: 'Dashboard', icon: LayoutDashboard, end: true },
+    { to: '/researcher/prescriptions', label: 'View Prescriptions', icon: FileText },
+    { to: '/researcher/profile', label: 'Profile', icon: Settings },
+  ],
 };
 
 const ROLE_LABELS = {
   admin: 'Administrator', doctor: 'Doctor',
-  pharmacist: 'Pharmacist', clinic_staff: 'Clinic Staff', patient: 'Patient',
+  pharmacist: 'Pharmacist', clinic_staff: 'Clinic Staff', patient: 'Patient', researcher: 'Medical Researcher',
 };
 
 export default function DashboardLayout({ role }) {

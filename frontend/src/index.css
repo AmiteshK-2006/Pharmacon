@@ -110,6 +110,7 @@
   .badge-green   { @apply badge bg-emerald-950/80 text-emerald-300 border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.25)]; }
   .badge-yellow  { @apply badge bg-amber-950/80 text-amber-300 border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.25)]; }
   .badge-red     { @apply badge bg-rose-950/80 text-rose-300 border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.25)]; }
+  .badge-purple  { @apply badge bg-purple-950/80 text-purple-300 border-purple-500/40 shadow-[0_0_12px_rgba(168,85,247,0.25)]; }
   .badge-gray    { @apply badge bg-surface-200/80 text-surface-400 border-surface-300/40; }
 
   /* ─── Tables ──────────────────────────────────────────── */

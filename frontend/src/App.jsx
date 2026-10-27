@@ -49,6 +49,10 @@ import PatientPrescriptions from './pages/patient/PatientPrescriptions';
 import PatientRefills from './pages/patient/PatientRefills';
 import PatientSchedule from './pages/patient/PatientSchedule';
 
+// Researcher
+import ResearcherDashboard from './pages/researcher/ResearcherDashboard';
+import ResearcherPrescriptions from './pages/researcher/ResearcherPrescriptions';
+
 // Shared
 import PrescriptionDetailPage from './pages/shared/PrescriptionDetailPage';
 import ProfilePage from './pages/shared/ProfilePage';
@@ -61,6 +65,7 @@ function RoleRedirect() {
     pharmacist: '/pharmacist',
     clinic_staff: '/clinic',
     patient: '/patient',
+    researcher: '/researcher',
   };
   return <Navigate to={destinations[role] || '/login'} replace />;
 }
@@ -140,6 +145,13 @@ export default function App() {
         <Route path="prescriptions/:id" element={<PrescriptionDetailPage />} />
         <Route path="refills" element={<PatientRefills />} />
         <Route path="schedule" element={<PatientSchedule />} />
+        <Route path="profile" element={<ProfilePage />} />
+      </Route>
+
+      {/* Researcher */}
+      <Route path="/researcher" element={<ProtectedRoute roles={['researcher']}><DashboardLayout role="researcher" /></ProtectedRoute>}>
+        <Route index element={<ResearcherDashboard />} />
+        <Route path="prescriptions" element={<ResearcherPrescriptions />} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>
 
