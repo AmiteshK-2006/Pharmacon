@@ -77,6 +77,7 @@ Pharmacon is a comprehensive , full-stack prescription digitisation and medicati
    ```
 
 ### 3. Frontend Setup
+
 1. Navigate to the frontend directory:
    ```bash
    cd frontend
