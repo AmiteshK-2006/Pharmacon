@@ -14,6 +14,7 @@ Pharmacon is a comprehensive , full-stack prescription digitisation and medicati
 - **Patients**: View their active medication schedules and request refills for ongoing prescriptions.
 
 ### Core Systems
+
 - **Secure File Storage**: Prescriptions are stored in a private Supabase bucket with strict Row Level Security (RLS) and short-lived signed URLs.
 - **Inventory Management**: Tracks individual batches, expiration dates, and maintains a ledger of all stock transactions.
 - **Audit Trails**: Critical actions (uploads, corrections, dispenses) are logged in an immutable audit trail.
@@ -22,6 +23,8 @@ Pharmacon is a comprehensive , full-stack prescription digitisation and medicati
 ---
 
 ## 🛠️ Tech Stack
+
+
 
 - **Frontend**: React, Vite, Tailwind CSS, TanStack Query, React Router
 - **Backend**: Node.js, Express.js, Jest (for testing)
