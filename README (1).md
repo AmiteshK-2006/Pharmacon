@@ -36,6 +36,7 @@ Pharmacon is a comprehensive , full-stack prescription digitisation and medicati
 - A free [Supabase](https://supabase.com/) account
 
 ### 1. Database Setup (Supabase)
+
 1. Create a new project in Supabase.
 2. Navigate to the **SQL Editor** in your Supabase dashboard.
 3. Run the SQL migration scripts located in `/supabase/migrations/` in sequential order:
