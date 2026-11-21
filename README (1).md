@@ -48,6 +48,7 @@ Pharmacon is a comprehensive , full-stack prescription digitisation and medicati
 4. Disable **Confirm Email** under Authentication -> Providers -> Email (for local testing).
 
 ### 2. Backend Setup
+
 1. Navigate to the backend directory:
    ```bash
    cd backend
