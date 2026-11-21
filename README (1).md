@@ -34,7 +34,9 @@ Pharmacon is a comprehensive , full-stack prescription digitisation and medicati
 
 ## 🚀 Getting Started
 
+
 ### Prerequisites
+
 - [Node.js](https://nodejs.org/) (v20+ recommended)
 - A free [Supabase](https://supabase.com/) account
 
