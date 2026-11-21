@@ -63,9 +63,11 @@ temp/
 *.sqlite3
 
 # Vite
+
 .vite/
 
 # Supabase local development
+
 .supabase/
 
 # OS/editor backups
