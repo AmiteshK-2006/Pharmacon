@@ -7,6 +7,7 @@ Pharmacon is a comprehensive , full-stack prescription digitisation and medicati
 ## 🌟 Key Features
 
 ### Role-Based Access Control
+
 - **Clinic Staff**: Upload prescription images/PDFs and assign them to specific patients and doctors.
 - **Doctors**: Review uploaded prescriptions, verify/correct extracted medication data, and confirm them for dispensing.
 - **Pharmacists**: Manage medicine inventory and dispense confirmed prescriptions using a strict FIFO batch-deduction system.
