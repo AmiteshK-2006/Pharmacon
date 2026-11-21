@@ -33,6 +33,7 @@ pnpm-debug.log*
 .DS_Store
 
 # Windows
+
 Thumbs.db
 Desktop.ini
 
@@ -48,6 +49,7 @@ Desktop.ini
 *.tsbuildinfo
 
 # Coverage
+
 coverage/
 .nyc_output/
 
