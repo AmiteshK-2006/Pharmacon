@@ -1,6 +1,6 @@
 # Pharmacon 💊
 
-Pharmacon is a comprehensive, full-stack prescription digitisation and medication-management platform. It bridges the gap between clinic staff, doctors, pharmacists, and patients by securely digitizing handwritten prescriptions and providing a robust workflow for review, dispensing, and refills.
+Pharmacon is a comprehensive , full-stack prescription digitisation and medication-management platform. It bridges the gap between clinic staff, doctors, pharmacists, and patients by securely digitizing handwritten prescriptions and providing a robust workflow for review, dispensing, and refills.
 
 ---
 
