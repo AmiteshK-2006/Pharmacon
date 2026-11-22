@@ -259,9 +259,9 @@ export async function getPrescriptionFile(req, res, next) {
 export async function getAnonymizedPrescriptionFile(req, res, next) {
   try {
     const { id } = req.params;
-    const { data: prescription, error } = await supabaseAdmin
+    let { data: prescription, error } = await supabaseAdmin
       .from('prescriptions')
-      .select('id, status, anonymized_file_asset_id, file_asset_id, anonymized_status')
+      .select('id, status, anonymized_file_asset_id, file_asset_id, anonymized_status, anonymization_metadata')
       .eq('id', id).single();
     if (error || !prescription) throw new AppError('Prescription not found', 404);
 
@@ -277,6 +277,7 @@ export async function getAnonymizedPrescriptionFile(req, res, next) {
       const result = await processPrescriptionAnonymization(id);
       if (result.success && result.assetId) {
         targetAssetId = result.assetId;
+        prescription.anonymization_metadata = result.metadata || {};
       }
     }
 
@@ -298,12 +299,33 @@ export async function getAnonymizedPrescriptionFile(req, res, next) {
       .from(asset.bucket).createSignedUrl(asset.storage_path, 300);
     if (signError) throw new AppError(`Could not generate file URL: ${signError.message}`, 500);
 
+    const meta = prescription.anonymization_metadata || {};
+    let previewOriginalUrl = null;
+    let previewRedactedUrl = null;
+
+    if (meta.preview_original_path) {
+      const { data: pOrigSigned } = await supabaseAdmin.storage
+        .from('private-prescriptions')
+        .createSignedUrl(meta.preview_original_path, 300);
+      if (pOrigSigned?.signedUrl) previewOriginalUrl = pOrigSigned.signedUrl;
+    }
+
+    if (meta.preview_redacted_path) {
+      const { data: pRedSigned } = await supabaseAdmin.storage
+        .from('private-prescriptions')
+        .createSignedUrl(meta.preview_redacted_path, 300);
+      if (pRedSigned?.signedUrl) previewRedactedUrl = pRedSigned.signedUrl;
+    }
+
     res.json({
       data: {
         url: signed.signedUrl,
         expires_in: 300,
         filename: asset.original_name,
         mime_type: asset.mime_type,
+        metadata: meta,
+        preview_original_url: previewOriginalUrl,
+        preview_redacted_url: previewRedactedUrl,
       },
     });
   } catch (err) { next(err); }

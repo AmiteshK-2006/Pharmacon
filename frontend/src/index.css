@@ -183,4 +183,59 @@
   .medical-glow {
     background: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.3) 0%, rgba(2, 132, 199, 0.15) 40%, transparent 75%);
   }
+
+  /* ─── Interactive Split Slider Inspector ──────────────── */
+  .split-container {
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+    touch-action: pan-y;
+  }
+
+  .split-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .slider-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #38bdf8;
+    cursor: ew-resize;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.85);
+    z-index: 20;
+    transition: background 0.15s ease;
+  }
+
+  .slider-handle::after {
+    content: '↔';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px;
+    height: 30px;
+    background: #0284c7;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: bold;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6), 0 0 12px rgba(56, 189, 248, 0.6);
+    border: 2px solid #38bdf8;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  .slider-handle:hover::after,
+  .slider-handle:active::after {
+    transform: translate(-50%, -50%) scale(1.12);
+    background: #0369a1;
+  }
 }

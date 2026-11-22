@@ -55,16 +55,36 @@ export async function anonymizeFileBuffer({ fileBuffer, fileName, mimeType, juri
 
       const anonymizedBuffer = Buffer.from(rawBase64, 'base64');
 
+      // Helper to extract Buffer from Data URI or raw Base64
+      function parseBase64Buffer(uri) {
+        if (!uri) return null;
+        let b64 = uri;
+        if (uri.startsWith('data:')) {
+          const m = uri.match(/^data:[^;]+;base64,(.+)$/);
+          if (m) b64 = m[1];
+        }
+        try {
+          return Buffer.from(b64, 'base64');
+        } catch {
+          return null;
+        }
+      }
+
+      const origPreviewBuffer = parseBase64Buffer(data.original_image_base64 || data.original_image);
+      const redPreviewBuffer = parseBase64Buffer(data.redacted_image_base64 || data.redacted_image);
+
       return {
         success: true,
         anonymizedBuffer,
+        origPreviewBuffer,
+        redPreviewBuffer,
         mimeType: outMime,
         fileName: data.anonymized_filename || `anonymized_${fileName}`,
         metadata: {
           engine: data.engine || 'Pharmacon Layout-Agnostic Redactor',
           jurisdiction: data.jurisdiction || 'GLOBAL',
           format_type: data.format_type || 'SCANNED_RASTER',
-          total_entities_redacted: data.total_entities_redacted || 0,
+          total_entities_redacted: data.total_entities_redacted ?? data.redacted_count ?? 0,
           confidence_score: data.confidence_score ?? 1.0,
           triage_status: data.triage_status || 'AUTO_APPROVED',
           review_reasons: data.review_reasons || [],
@@ -179,6 +199,38 @@ export async function processPrescriptionAnonymization(prescriptionId) {
       throw new Error(`Failed to upload anonymized file to storage: ${uploadErr.message}`);
     }
 
+    // 4b. Upload high-res preview images for Split Inspector (if generated)
+    let previewOrigPath = null;
+    let previewRedPath = null;
+
+    if (result.origPreviewBuffer) {
+      previewOrigPath = `anonymized/previews/${anonymizedFileId}_orig.png`;
+      const { error: pOrigErr } = await supabaseAdmin.storage
+        .from('private-prescriptions')
+        .upload(previewOrigPath, result.origPreviewBuffer, {
+          contentType: 'image/png',
+          upsert: true,
+        });
+      if (pOrigErr) console.warn('[AnonymizerService] Could not store original preview PNG:', pOrigErr.message);
+    }
+
+    if (result.redPreviewBuffer) {
+      previewRedPath = `anonymized/previews/${anonymizedFileId}_red.png`;
+      const { error: pRedErr } = await supabaseAdmin.storage
+        .from('private-prescriptions')
+        .upload(previewRedPath, result.redPreviewBuffer, {
+          contentType: 'image/png',
+          upsert: true,
+        });
+      if (pRedErr) console.warn('[AnonymizerService] Could not store redacted preview PNG:', pRedErr.message);
+    }
+
+    const completeMetadata = {
+      ...result.metadata,
+      preview_original_path: previewOrigPath,
+      preview_redacted_path: previewRedPath,
+    };
+
     // 5. Create file_assets record
     const { data: newAsset, error: newAssetErr } = await supabaseAdmin
       .from('file_assets')
@@ -205,12 +257,12 @@ export async function processPrescriptionAnonymization(prescriptionId) {
       .update({
         anonymized_file_asset_id: newAsset.id,
         anonymized_status: 'COMPLETED',
-        anonymization_metadata: result.metadata,
+        anonymization_metadata: completeMetadata,
       })
       .eq('id', prescriptionId);
 
     console.log(`[AnonymizerService] Successfully anonymized prescription ${prescriptionId} -> Asset ${newAsset.id}`);
-    return { success: true, assetId: newAsset.id, metadata: result.metadata };
+    return { success: true, assetId: newAsset.id, metadata: completeMetadata };
   } catch (err) {
     console.error(`[AnonymizerService] Pipeline failure for prescription ${prescriptionId}:`, err);
     await supabaseAdmin
