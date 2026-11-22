@@ -5,73 +5,92 @@ const ANONYMIZER_URL = (process.env.ANONYMIZER_SERVICE_URL || 'https://pharmacon
 
 /**
  * Sends a prescription file buffer to the external ML Anonymizer service.
- * Endpoint: POST /api/v1/anonymize/preview?jurisdiction=AUTO
+ * Endpoint: POST /api/v1/anonymize/preview?jurisdiction=AUTO&force_prescription=true
+ * Includes automatic retry with backoff for Render cold starts (up to 120s).
  */
-export async function anonymizeFileBuffer({ fileBuffer, fileName, mimeType, jurisdiction = 'AUTO' }) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout for cold starts
+export async function anonymizeFileBuffer({ fileBuffer, fileName, mimeType, jurisdiction = 'AUTO', maxRetries = 2 }) {
+  const targetUrl = `${ANONYMIZER_URL}/api/v1/anonymize/preview?jurisdiction=${encodeURIComponent(jurisdiction)}&force_prescription=true`;
+  let lastError = null;
 
-  try {
-    const form = new FormData();
-    const blob = new Blob([fileBuffer], { type: mimeType || 'application/octet-stream' });
-    form.append('file', blob, fileName || 'prescription.png');
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000); // 120s timeout for Render cold starts
 
-    const targetUrl = `${ANONYMIZER_URL}/api/v1/anonymize/preview?jurisdiction=${encodeURIComponent(jurisdiction)}`;
-    console.log(`[AnonymizerService] Calling ${targetUrl} for file="${fileName}" (${fileBuffer.length} bytes)...`);
+    try {
+      console.log(`[AnonymizerService] Attempt ${attempt}/${maxRetries + 1}: Calling ${targetUrl} for file="${fileName}" (${fileBuffer.length} bytes)...`);
 
-    const res = await fetch(targetUrl, {
-      method: 'POST',
-      body: form,
-      signal: controller.signal,
-    });
+      const form = new FormData();
+      const blob = new Blob([fileBuffer], { type: mimeType || 'application/octet-stream' });
+      form.append('file', blob, fileName || 'prescription.png');
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      throw new Error(`Anonymizer responded with status ${res.status}: ${errText.slice(0, 200)}`);
-    }
+      const res = await fetch(targetUrl, {
+        method: 'POST',
+        body: form,
+        signal: controller.signal,
+      });
 
-    const data = await res.json();
-
-    // The service returns download_file_base64 as a Data URI (e.g., "data:image/jpeg;base64,...")
-    let rawBase64 = data.download_file_base64 || data.redacted_image_base64 || '';
-    let outMime = data.mime_type || mimeType || 'image/jpeg';
-
-    if (rawBase64.startsWith('data:')) {
-      const match = rawBase64.match(/^data:([^;]+);base64,(.+)$/);
-      if (match) {
-        outMime = match[1];
-        rawBase64 = match[2];
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        // If server is starting up or busy (502, 503, 504), throw to trigger retry
+        throw new Error(`Anonymizer responded with status ${res.status}: ${errText.slice(0, 200)}`);
       }
+
+      const data = await res.json();
+
+      // The service returns download_file_base64 as a Data URI (e.g., "data:image/jpeg;base64,...")
+      let rawBase64 = data.download_file_base64 || data.redacted_image_base64 || '';
+      let outMime = data.mime_type || mimeType || 'image/jpeg';
+
+      if (!rawBase64) {
+        throw new Error(`Anonymizer response missing sanitized file payload (status: ${data.status || 'UNKNOWN'})`);
+      }
+
+      if (rawBase64.startsWith('data:')) {
+        const match = rawBase64.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          outMime = match[1];
+          rawBase64 = match[2];
+        }
+      }
+
+      const anonymizedBuffer = Buffer.from(rawBase64, 'base64');
+
+      return {
+        success: true,
+        anonymizedBuffer,
+        mimeType: outMime,
+        fileName: data.anonymized_filename || `anonymized_${fileName}`,
+        metadata: {
+          engine: data.engine || 'Pharmacon Layout-Agnostic Redactor',
+          jurisdiction: data.jurisdiction || 'GLOBAL',
+          format_type: data.format_type || 'SCANNED_RASTER',
+          total_entities_redacted: data.total_entities_redacted || 0,
+          confidence_score: data.confidence_score ?? 1.0,
+          triage_status: data.triage_status || 'AUTO_APPROVED',
+          review_reasons: data.review_reasons || [],
+          redacted_targets: data.redacted_targets || [],
+          processed_at: new Date().toISOString(),
+        },
+      };
+    } catch (err) {
+      lastError = err;
+      console.warn(`[AnonymizerService] Attempt ${attempt} failed for ${fileName}:`, err.message);
+
+      // If we have more attempts and error is likely a cold start / temporary gateway issue
+      if (attempt <= maxRetries) {
+        const delayMs = attempt * 5000; // 5s, 10s
+        console.log(`[AnonymizerService] Waiting ${delayMs}ms before retry (waiting for Render service spin-up)...`);
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const anonymizedBuffer = Buffer.from(rawBase64, 'base64');
-
-    return {
-      success: true,
-      anonymizedBuffer,
-      mimeType: outMime,
-      fileName: data.anonymized_filename || `anonymized_${fileName}`,
-      metadata: {
-        engine: data.engine || 'Pharmacon Layout-Agnostic Redactor',
-        jurisdiction: data.jurisdiction || 'GLOBAL',
-        format_type: data.format_type || 'SCANNED_RASTER',
-        total_entities_redacted: data.total_entities_redacted || 0,
-        confidence_score: data.confidence_score ?? 1.0,
-        triage_status: data.triage_status || 'AUTO_APPROVED',
-        review_reasons: data.review_reasons || [],
-        redacted_targets: data.redacted_targets || [],
-        processed_at: new Date().toISOString(),
-      },
-    };
-  } catch (err) {
-    console.error(`[AnonymizerService] Anonymization failed for ${fileName}:`, err.message);
-    return {
-      success: false,
-      error: err.message,
-    };
-  } finally {
-    clearTimeout(timeout);
   }
+
+  return {
+    success: false,
+    error: lastError?.message || 'Anonymization service request failed after retries',
+  };
 }
 
 /**

@@ -1,19 +1,22 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequest } from '../../lib/api';
 import { PageSpinner, Spinner } from '../../components/Spinner';
 import { EmptyState, ErrorState } from '../../components/States';
 import { StatusBadge } from '../../components/StatusBadge';
 import Modal from '../../components/Modal';
-import { Search, Eye, Download, ShieldCheck, Clock, FileText, Lock, ExternalLink, Sparkles } from 'lucide-react';
+import { Search, Eye, Download, ShieldCheck, Clock, FileText, Lock, ExternalLink, Sparkles, RefreshCw } from 'lucide-react';
 
 export default function ResearcherPrescriptions() {
   const { session } = useAuth();
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [selectedPrescription, setSelectedPrescription] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [retryingId, setRetryingId] = useState(null);
   const [fileUrl, setFileUrl] = useState(null);
+  const [fileMime, setFileMime] = useState(null);
   const [fileError, setFileError] = useState(null);
 
   const { data, isLoading, error } = useQuery({
@@ -33,11 +36,15 @@ export default function ResearcherPrescriptions() {
     setSelectedPrescription(pres);
     setPreviewLoading(true);
     setFileUrl(null);
+    setFileMime(null);
     setFileError(null);
     try {
       const res = await apiRequest(`/api/prescriptions/${pres.id}/anonymized-file`, {}, session);
       if (res?.data?.url) {
         setFileUrl(res.data.url);
+        setFileMime(res.data.mime_type || null);
+        // Refresh table query in case status changed from PENDING/FAILED to COMPLETED
+        qc.invalidateQueries(['researcher-prescriptions']);
       } else {
         throw new Error('Anonymized file URL not available');
       }
@@ -45,6 +52,19 @@ export default function ResearcherPrescriptions() {
       setFileError(err.message || 'Failed to load anonymized document preview');
     } finally {
       setPreviewLoading(false);
+    }
+  }
+
+  async function handleRetry(e, presId) {
+    e.stopPropagation();
+    setRetryingId(presId);
+    try {
+      await apiRequest(`/api/prescriptions/${presId}/anonymize`, { method: 'POST' }, session);
+      await qc.invalidateQueries(['researcher-prescriptions']);
+    } catch (err) {
+      console.error('Retry failed:', err);
+    } finally {
+      setRetryingId(null);
     }
   }
 
@@ -172,13 +192,26 @@ export default function ResearcherPrescriptions() {
 
                   {/* Actions */}
                   <td>
-                    <button
-                      onClick={() => openAnonymizedPreview(pres)}
-                      className="btn-primary btn-sm inline-flex items-center gap-1.5 text-xs font-bold shadow-md shadow-sky-400/20"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      View Anonymized Copy
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openAnonymizedPreview(pres)}
+                        className="btn-primary btn-sm inline-flex items-center gap-1.5 text-xs font-bold shadow-md shadow-sky-400/20"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        View Anonymized Copy
+                      </button>
+                      {anonStatus === 'FAILED' && (
+                        <button
+                          onClick={(e) => handleRetry(e, pres.id)}
+                          disabled={retryingId === pres.id}
+                          className="btn-secondary btn-sm inline-flex items-center gap-1 text-xs text-rose-300 border-rose-500/40 hover:bg-rose-950/40"
+                          title="Retry anonymization"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${retryingId === pres.id ? 'animate-spin' : ''}`} />
+                          Retry
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -233,15 +266,22 @@ export default function ResearcherPrescriptions() {
               </div>
             ) : fileUrl ? (
               <div className="w-full flex justify-center">
-                <img
-                  src={fileUrl}
-                  alt="Anonymized Prescription"
-                  className="max-h-[580px] w-auto max-w-full object-contain rounded-lg shadow-lg border border-sky-500/20"
-                  onError={() => {
-                    // If image fails, could be a PDF
-                    setFileError('File format is PDF or binary document. Use "Open Fullscreen" to view or download.');
-                  }}
-                />
+                {fileMime === 'application/pdf' || fileUrl.toLowerCase().includes('.pdf') ? (
+                  <iframe
+                    src={fileUrl}
+                    title="Anonymized Prescription PDF"
+                    className="w-full h-[580px] rounded-lg border border-sky-500/20 bg-white"
+                  />
+                ) : (
+                  <img
+                    src={fileUrl}
+                    alt="Anonymized Prescription"
+                    className="max-h-[580px] w-auto max-w-full object-contain rounded-lg shadow-lg border border-sky-500/20"
+                    onError={() => {
+                      setFileError('File format preview unavailable. Use "Open Fullscreen" to view or download.');
+                    }}
+                  />
+                )}
               </div>
             ) : null}
           </div>
