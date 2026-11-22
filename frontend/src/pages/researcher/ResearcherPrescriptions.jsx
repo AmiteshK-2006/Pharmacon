@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequest } from '../../lib/api';
@@ -15,13 +15,8 @@ import {
   FileText,
   Lock,
   ExternalLink,
-  Sparkles,
   RefreshCw,
   Check,
-  Layers,
-  ChevronLeft,
-  ChevronRight,
-  Sliders,
   AlertCircle,
   Copy,
 } from 'lucide-react';
@@ -35,15 +30,8 @@ export default function ResearcherPrescriptions() {
   const [retryingId, setRetryingId] = useState(null);
   const [fileUrl, setFileUrl] = useState(null);
   const [fileMime, setFileMime] = useState(null);
-  const [previewOriginalUrl, setPreviewOriginalUrl] = useState(null);
-  const [previewRedactedUrl, setPreviewRedactedUrl] = useState(null);
   const [fileError, setFileError] = useState(null);
-  const [splitPos, setSplitPos] = useState(50);
-  const [isDragging, setIsDragging] = useState(false);
-  const [viewMode, setViewMode] = useState('split'); // 'split' | 'document'
   const [copiedJson, setCopiedJson] = useState(false);
-
-  const containerRef = useRef(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['researcher-prescriptions'],
@@ -63,19 +51,13 @@ export default function ResearcherPrescriptions() {
     setPreviewLoading(true);
     setFileUrl(null);
     setFileMime(null);
-    setPreviewOriginalUrl(null);
-    setPreviewRedactedUrl(null);
     setFileError(null);
-    setSplitPos(50);
-    setViewMode('split');
 
     try {
       const res = await apiRequest(`/api/prescriptions/${pres.id}/anonymized-file`, {}, session);
       if (res?.data?.url) {
         setFileUrl(res.data.url);
         setFileMime(res.data.mime_type || null);
-        if (res.data.preview_original_url) setPreviewOriginalUrl(res.data.preview_original_url);
-        if (res.data.preview_redacted_url) setPreviewRedactedUrl(res.data.preview_redacted_url);
 
         if (res.data.metadata) {
           setSelectedPrescription(prev => ({
@@ -106,53 +88,6 @@ export default function ResearcherPrescriptions() {
       setRetryingId(null);
     }
   }
-
-  // Drag mechanics for the interactive split slider
-  function updateSplitFromClientX(clientX) {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    if (rect.width <= 0) return;
-    const pct = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-    setSplitPos(pct);
-  }
-
-  function handleSliderMouseDown(e) {
-    e.preventDefault();
-    setIsDragging(true);
-    updateSplitFromClientX(e.clientX);
-  }
-
-  function handleContainerClick(e) {
-    if (e.target.closest('.slider-handle')) return;
-    updateSplitFromClientX(e.clientX);
-  }
-
-  useEffect(() => {
-    function onMouseMove(e) {
-      if (isDragging) updateSplitFromClientX(e.clientX);
-    }
-    function onTouchMove(e) {
-      if (isDragging && e.touches && e.touches[0]) {
-        updateSplitFromClientX(e.touches[0].clientX);
-      }
-    }
-    function onEnd() {
-      setIsDragging(false);
-    }
-
-    if (isDragging) {
-      window.addEventListener('mousemove', onMouseMove);
-      window.addEventListener('mouseup', onEnd);
-      window.addEventListener('touchmove', onTouchMove, { passive: true });
-      window.addEventListener('touchend', onEnd);
-    }
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onEnd);
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onEnd);
-    };
-  }, [isDragging]);
 
   function copyAuditJson(metadata) {
     navigator.clipboard.writeText(JSON.stringify(metadata || {}, null, 2)).then(() => {
@@ -193,7 +128,6 @@ export default function ResearcherPrescriptions() {
   const redactedTargets = Array.isArray(meta.redacted_targets) ? meta.redacted_targets : [];
 
   const isPdf = fileMime === 'application/pdf' || fileUrl?.toLowerCase().includes('.pdf');
-  const hasSplitImages = Boolean(previewOriginalUrl && previewRedactedUrl);
 
   return (
     <div>
@@ -440,80 +374,33 @@ export default function ResearcherPrescriptions() {
             </div>
           </div>
 
-          {/* ─── Main Inspector Area (Side-by-Side Split Inspector) ─── */}
+          {/* ─── Main Document Inspector Area (De-Identified Preview) ─── */}
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
             {/* Inspector Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-slate-800/80">
               <div>
                 <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-sky-400" />
-                  Side-by-Side Interactive Split Inspector
+                  <FileText className="w-4 h-4 text-sky-400" />
+                  De-Identified Prescription Document
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {hasSplitImages
-                    ? 'Slide left or right to inspect redaction boundaries against the original prescription.'
-                    : 'Inspecting de-identified document layer with scrubbed clinical boundaries.'}
+                  Sanitized clinical document with all patient and physician identifiers permanently masked.
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
-                {/* View Mode Toggle if Split Images & Document both exist */}
-                {hasSplitImages && (
-                  <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-xs">
-                    <button
-                      onClick={() => setViewMode('split')}
-                      className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                        viewMode === 'split' ? 'bg-sky-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      Split Inspector
-                    </button>
-                    <button
-                      onClick={() => setViewMode('document')}
-                      className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                        viewMode === 'document' ? 'bg-sky-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      Full Document
-                    </button>
-                  </div>
-                )}
-
-                {/* Page Navigation Controls */}
-                <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg text-xs">
-                  <button
-                    disabled
-                    className="px-2 py-0.5 rounded bg-slate-800/60 text-slate-500 cursor-not-allowed opacity-60 flex items-center"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Prev</span>
-                  </button>
-                  <span className="font-mono text-slate-300 px-1 text-xs">Page 1</span>
-                  <button
-                    disabled
-                    className="px-2 py-0.5 rounded bg-slate-800/60 text-slate-500 cursor-not-allowed opacity-60 flex items-center"
-                  >
-                    <span className="hidden sm:inline">Next</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {/* Legend */}
-                <div className="flex items-center gap-1.5 text-xs font-mono bg-slate-950/80 px-2.5 py-1 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 font-medium">Original (Left)</span>
-                  <span className="text-sky-400 font-bold">|</span>
-                  <span className="text-emerald-400 font-medium">Redacted (Right)</span>
-                </div>
+              <div className="flex items-center gap-2 text-xs font-mono bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-800 text-emerald-400">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Zero-PII Verified</span>
               </div>
             </div>
 
             {/* Inspector Display Canvas */}
-            <div className="flex justify-center items-center bg-slate-950 rounded-xl p-4 border border-slate-800/80 min-h-[480px]">
+            <div className="flex justify-center items-center bg-slate-950 rounded-xl p-4 border border-slate-800/80 min-h-[520px]">
               {previewLoading ? (
                 <div className="flex flex-col items-center justify-center p-12 text-center">
                   <Spinner size="lg" />
                   <p className="text-xs text-sky-400 mt-4 font-semibold tracking-wide">
-                    Initializing high-fidelity de-identification inspector…
+                    Loading de-identified prescription document…
                   </p>
                 </div>
               ) : fileError ? (
@@ -530,55 +417,20 @@ export default function ResearcherPrescriptions() {
                     </button>
                   )}
                 </div>
-              ) : hasSplitImages && viewMode === 'split' ? (
-                /* Interactive Split Slider Box */
-                <div
-                  ref={containerRef}
-                  onClick={handleContainerClick}
-                  className="split-container relative rounded-lg border border-slate-700 max-w-full inline-block cursor-ew-resize shadow-2xl"
-                >
-                  {/* Base Image: Redacted Copy */}
-                  <img
-                    src={previewRedactedUrl}
-                    alt="Sanitized Prescription"
-                    className="block max-h-[720px] w-auto pointer-events-none select-none rounded"
-                  />
-
-                  {/* Clipped Overlay Image: Original Copy */}
-                  <div
-                    className="split-overlay pointer-events-none select-none"
-                    style={{ width: `${splitPos}%` }}
-                  >
-                    <img
-                      src={previewOriginalUrl}
-                      alt="Original Prescription"
-                      className="block max-h-[720px] w-auto max-w-none pointer-events-none select-none rounded"
-                    />
-                  </div>
-
-                  {/* Interactive Draggable Handle */}
-                  <div
-                    onMouseDown={handleSliderMouseDown}
-                    onTouchStart={handleSliderMouseDown}
-                    className="slider-handle"
-                    style={{ left: `${splitPos}%` }}
-                    title="Drag left or right to inspect redaction boundaries"
-                  />
-                </div>
               ) : fileUrl ? (
-                /* Native Document Display (PDF or Image) */
+                /* Reliable Document Rendering (Native PDF or High-Res Image) */
                 <div className="w-full flex justify-center">
                   {isPdf ? (
                     <iframe
                       src={fileUrl}
                       title="Anonymized Prescription PDF"
-                      className="w-full h-[640px] rounded-xl border border-slate-700 bg-white shadow-2xl"
+                      className="w-full h-[660px] rounded-xl border border-slate-700 bg-white shadow-2xl"
                     />
                   ) : (
                     <img
                       src={fileUrl}
                       alt="Anonymized Prescription"
-                      className="max-h-[640px] w-auto max-w-full object-contain rounded-xl shadow-2xl border border-slate-700"
+                      className="max-h-[660px] w-auto max-w-full object-contain rounded-xl shadow-2xl border border-slate-700 bg-white"
                     />
                   )}
                 </div>
